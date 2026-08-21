@@ -1,0 +1,15 @@
+# 1. Ignorar absolutamente TODO en la carpeta
+*
+
+# 2. Excepciones: Permitir carpetas para que Git pueda navegar
+!*/
+# 3. Permitir solo archivos con estas extensiones de script/código
+!*.f90
+!*.f
+!*.f95
+!*.py
+!*.sh
+!*.tex
+!*.txt
+!*.md
+!.gitignore
