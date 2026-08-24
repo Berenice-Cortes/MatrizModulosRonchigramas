@@ -6,6 +6,12 @@ module utiles
     implicit none
     integer, parameter :: dp = kind(0.0d0) !Aquí lo que se use en cualquier subrutina
 
+    type :: registro_tiempo
+        integer(8) :: count_inicio, count_rate, count_final, valores(8)
+        real(dp) :: t_inicial, t_final, tiempo_real, tiempo
+    end type registro_tiempo
+    type(registro_tiempo) :: reloj
+    
     type :: url_rutas
         character(len=150) :: carp_plant, carpeta, nombre_imagen
         character(len=250) :: rutaruta
@@ -39,8 +45,37 @@ module utiles
     type(param_filtros_ajustes_datos) :: filt
 
 contains
+    subroutine reloj_inicio()
+        implicit none
+        call system_clock(reloj%count_inicio, reloj%count_rate)
+        call cpu_time(reloj%t_inicial)
+        call date_and_time(values=reloj%valores)
 
-    subroutine crear_directorio()
+        ! open(unit=51, file='salida/registro.txt', status='unknown', position='append') 
+            write(*, '(A, I4.4, "/", I2.2, "/", I2.2, " ", I2.2, ":", I2.2, ":", I2.2)') &
+            "Registro realizado el: ",&
+            &reloj%valores(1),reloj%valores(2),reloj%valores(3),reloj%valores(5),reloj%valores(6),reloj%valores(7)
+        ! close(51)
+    end subroutine reloj_inicio
+
+    subroutine reloj_fin()
+        implicit none
+        call cpu_time(reloj%t_final)
+        call system_clock(reloj%count_final)
+        reloj%tiempo = reloj%t_final - reloj%t_inicial
+        reloj%tiempo_real = real(reloj%count_final - reloj%count_inicio, dp) / real(reloj%count_rate, dp)
+
+        ! open(unit=51, file='salida/registro.txt', status='unknown', position='append') 
+        write(*,'(2X,A,F18.10,A)') "Tiempo cpu de ejecucion: ", reloj%tiempo, " segundos"
+        write(*,'(2X,A,F18.10,A)') "Tiempo real de reloj:", reloj%tiempo_real, "segundos"
+        call date_and_time(values=reloj%valores)
+        write(*, '(A, I4.4, "/", I2.2, "/", I2.2, " ", I2.2, ":", I2.2, ":", I2.2)') &
+        "Registro terminado el: ",&
+        &reloj%valores(1),reloj%valores(2),reloj%valores(3),reloj%valores(5),reloj%valores(6),reloj%valores(7)
+        close(51)
+    end subroutine reloj_fin
+
+    subroutine crear_directorios_IO()
         !Sirve para Fortran 2008 en adelante
         implicit none
         integer :: cmd_status
@@ -73,9 +108,26 @@ contains
             write(*,*) 'Directorio listo: ', "Salida"
         end if
 
-    end subroutine crear_directorio
+    end subroutine crear_directorios_IO
 
-    subroutine ficheros()
+    subroutine rutas_carpetas()
+        implicit none
+
+        open(30,file='Salida/url_ubicacion_guardar_archivos_generados.txt',status='old',action='read')
+            read(30,'(A)')
+            read(30,'(A)') ruta%carp_plant
+        close(30)
+
+        print*, 'la ruta que saca es:', trim(ruta%carp_plant)//'/#espejo_a_simular.txt'
+        ruta%rutap= trim(ruta%carp_plant)//'/#espejo_a_simular.txt'
+
+        open(30,file= trim(ruta%rutap),status='old',action='read')
+        ! open(30,file=trim(ruta%carp_plant)//trim('/#espejo_a_simular.txt'),status='old',action='read')
+            read(30,'(A)') ruta%nombre_imagen
+        close(30)
+    endsubroutine rutas_carpetas
+
+    subroutine ficheros_IO()
         implicit none
 
         open(unit=40, file='Entrada' // '/datos_.txt', status='replace', action='write')
@@ -83,27 +135,18 @@ contains
         close(40)
 
         open(unit=40, file='Salida' // '/url_ubicacion_guardar_archivos_generados.txt', status='replace', action='write')
-            write(40, *) 'Aquí va la ubicación de la carpeta donde se guardara: png.'
+            write(40, *) 'Aquí va la ubicación de la carpeta donde se guardara: png-'
+            write(40, '(A)') '/Users/berenicecortes/Desktop/carpeta_de_carpetas_plantillas'
         close(40)
-    end subroutine ficheros
+    end subroutine ficheros_IO
 
-    ! subroutine rutas_carpetas()
-    !     implicit none
+    subroutine escribirnano()
+        implicit none
+        character(len=500) :: comando_nano
 
-    !     open(30,file='urlcarpetas.txt',status='old',action='read')
-    !         read(30,'(A)') ruta%carp_plant
-    !     close(30)
-
-    !     open(30,file=trim(ruta%carp_plant)//'/#espejo_a_simular.txt',status='old',action='read')
-    !         read(30,'(A)') ruta%carpeta
-    !     close(30)
-
-    !     ruta%rutaruta=trim(ruta%carp_plant)//'/'//trim(ruta%carpeta)
-
-    !     open(30,file=trim(ruta%rutaruta)//'/ruta.txt',status='old',action='read')
-    !         read(30,'(A)') ruta%nombre_imagen
-    !     close(30)
-    ! endsubroutine rutas_carpetas
+        print('(A)'), trim(ruta%rutaruta)//'/datos_'//trim(ruta%nombre_imagen)//'.txt'
+        comando_nano = 'nano "' // trim(ruta%rutaruta) // '/datos_' // trim(ruta%nombre_imagen) // '.txt"'
+    end subroutine escribirnano
 
     ! subroutine leer_parametros_simulacion()
     !     implicit none

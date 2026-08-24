@@ -1,1 +1,2 @@
- Aquí va la ubicación de la carpeta donde se guardara: png.
+ Aquí va la ubicación de la carpeta donde se guardara: png-
+/Users/berenicecortes/Desktop/carpeta_de_carpetas_plantillas
