@@ -13,7 +13,7 @@ module utiles
     type(registro_tiempo) :: reloj
     
     type :: url_rutas
-        character(len=150) :: carp_plant, carpeta, nombre_imagen
+        character(len=256) :: carp_plant, carpeta, nombre_imagen
         character(len=250) :: rutaruta
         character(len=130) :: rutap
     end type url_rutas
@@ -72,10 +72,14 @@ contains
         write(*, '(A, I4.4, "/", I2.2, "/", I2.2, " ", I2.2, ":", I2.2, ":", I2.2)') &
         "Registro terminado el: ",&
         &reloj%valores(1),reloj%valores(2),reloj%valores(3),reloj%valores(5),reloj%valores(6),reloj%valores(7)
-        close(51)
+        ! WRITE(51,'(A)') "------------------------------------------------------------------------------------------------------------------"
+        ! WRITE(51,'(A)') "------------------------------------------------------------------------------------------------------------------"
+        ! close(51)
+
+        print*, "PROCESO FINALIZADO CON ÉXITO"
     end subroutine reloj_fin
 
-    subroutine crear_directorios_IO()
+    subroutine crear_directorios_ficheros_IO()
         !Sirve para Fortran 2008 en adelante
         implicit none
         integer :: cmd_status
@@ -95,6 +99,12 @@ contains
         end if
 
      ! =======================================================================================================================
+        open(30,file='Entrada/#espejo_a_simular.txt',status='replace',action='write')
+            write(30,'(A)') 'URL de carpeta matriz de plantillas:'
+            write(30,'(A)') 'Nombre carpeta:'
+            write(30,'(A)') 'Nombre imagen:'
+        close(30)
+     ! =======================================================================================================================
 
         call execute_command_line('mkdir -p "Salida"', exitstat=cmd_status)
 
@@ -108,45 +118,112 @@ contains
             write(*,*) 'Directorio listo: ', "Salida"
         end if
 
-    end subroutine crear_directorios_IO
-
-    subroutine rutas_carpetas()
-        implicit none
-
-        open(30,file='Salida/url_ubicacion_guardar_archivos_generados.txt',status='old',action='read')
-            read(30,'(A)')
-            read(30,'(A)') ruta%carp_plant
+     ! =======================================================================================================================
+        open(30,file='Salida/url_donde_guardara_archivos_generados.txt',status='replace',action='write')
+            write(30,'(A)') 'URL archivos generados:'
         close(30)
+     ! =======================================================================================================================
+    end subroutine crear_directorios_ficheros_IO
 
-        print*, 'la ruta que saca es:', trim(ruta%carp_plant)//'/#espejo_a_simular.txt'
-        ruta%rutap= trim(ruta%carp_plant)//'/#espejo_a_simular.txt'
-
-        open(30,file= trim(ruta%rutap),status='old',action='read')
-        ! open(30,file=trim(ruta%carp_plant)//trim('/#espejo_a_simular.txt'),status='old',action='read')
-            read(30,'(A)') ruta%nombre_imagen
-        close(30)
-    endsubroutine rutas_carpetas
-
-    subroutine ficheros_IO()
-        implicit none
-
-        open(unit=40, file='Entrada' // '/datos_.txt', status='replace', action='write')
-            write(40, *) 'Di,nlp,z0,alfa,beta,gamma,np,phi'
-        close(40)
-
-        open(unit=40, file='Salida' // '/url_ubicacion_guardar_archivos_generados.txt', status='replace', action='write')
-            write(40, *) 'Aquí va la ubicación de la carpeta donde se guardara: png-'
-            write(40, '(A)') '/Users/berenicecortes/Desktop/carpeta_de_carpetas_plantillas'
-        close(40)
-    end subroutine ficheros_IO
-
-    subroutine escribirnano()
+    subroutine editarnano()
         implicit none
         character(len=500) :: comando_nano
+        integer :: ierr
 
-        print('(A)'), trim(ruta%rutaruta)//'/datos_'//trim(ruta%nombre_imagen)//'.txt'
-        comando_nano = 'nano "' // trim(ruta%rutaruta) // '/datos_' // trim(ruta%nombre_imagen) // '.txt"'
-    end subroutine escribirnano
+        comando_nano = 'nano "Entrada/#espejo_a_simular.txt"'
+        call execute_command_line(trim(comando_nano), wait=.true., exitstat=ierr)
+    end subroutine editarnano
+
+    function leer_valor(unit_num) result(val)
+        integer, intent(in) :: unit_num
+        character(len=256)  :: val, linea
+        read(unit_num, '(A)') linea
+        val = adjustl(linea(index(linea, ':') + 1 :))
+    end function leer_valor
+
+    subroutine leer_primigenios()
+        implicit none
+
+        open(30,file='Entrada/#espejo_a_simular.txt',status='old',action='read')
+        ! read(30,'(A),:,(A)') ruta%carp_plant
+            ruta%carp_plant = leer_valor(30)
+        close(30)
+
+        print *, "Ruta:   ", trim(ruta%carp_plant)
+    end subroutine leer_primigenios
+
+    ! subroutine crear_directorios_IO()
+    !     !Sirve para Fortran 2008 en adelante
+    !     implicit none
+    !     integer :: cmd_status
+
+    !     ! Crear la carpeta en el sistema operativo
+    !     ! En Linux / macOS / Unix:
+    !     call execute_command_line('mkdir -p "Entrada"', exitstat=cmd_status)
+
+    !     ! En Windows (cmd):
+    !     ! call execute_command_line('mkdir "' // trim(carp_plant) // '"', exitstat=cmd_status)
+
+    !     ! Verificar si se creó correctamente
+    !     if (cmd_status /= 0) then
+    !         write(*,*) 'Error: No se pudo crear el directorio: ', "Entrada"
+    !     else
+    !         write(*,*) 'Directorio listo: ', "Entrada"
+    !     end if
+
+    !  ! =======================================================================================================================
+
+    !     call execute_command_line('mkdir -p "Salida"', exitstat=cmd_status)
+
+    !     ! En Windows (cmd):
+    !     ! call execute_command_line('mkdir "' // trim(carp_plant) // '"', exitstat=cmd_status)
+
+    !     ! Verificar si se creó correctamente
+    !     if (cmd_status /= 0) then
+    !         write(*,*) 'Error: No se pudo crear el directorio: ', "Salida"
+    !     else
+    !         write(*,*) 'Directorio listo: ', "Salida"
+    !     end if
+
+    ! end subroutine crear_directorios_IO
+
+    ! subroutine rutas_carpetas()
+    !     implicit none
+
+    !     open(30,file='Salida/url_ubicacion_guardar_archivos_generados.txt',status='old',action='read')
+    !         read(30,'(A)')
+    !         read(30,'(A)') ruta%carp_plant
+    !     close(30)
+
+    !     print*, 'la ruta que saca es:', trim(ruta%carp_plant)//'/#espejo_a_simular.txt'
+    !     ruta%rutap= trim(ruta%carp_plant)//'/#espejo_a_simular.txt'
+
+    !     open(30,file= trim(ruta%rutap),status='old',action='read')
+    !     ! open(30,file=trim(ruta%carp_plant)//trim('/#espejo_a_simular.txt'),status='old',action='read')
+    !         read(30,'(A)') ruta%nombre_imagen
+    !     close(30)
+    ! endsubroutine rutas_carpetas
+
+    ! subroutine ficheros_IO()
+    !     implicit none
+
+    !     open(unit=40, file='Entrada' // '/datos_.txt', status='replace', action='write')
+    !         write(40, *) 'Di,nlp,z0,alfa,beta,gamma,np,phi'
+    !     close(40)
+
+    !     open(unit=40, file='Salida' // '/url_ubicacion_guardar_archivos_generados.txt', status='replace', action='write')
+    !         write(40, *) 'Aquí va la ubicación de la carpeta donde se guardara: png-'
+    !         write(40, '(A)') '/Users/berenicecortes/Desktop/carpeta_de_carpetas_plantillas'
+    !     close(40)
+    ! end subroutine ficheros_IO
+
+    ! subroutine escribirnano()
+    !     implicit none
+    !     character(len=500) :: comando_nano
+
+    !     print('(A)'), trim(ruta%rutaruta)//'/datos_'//trim(ruta%nombre_imagen)//'.txt'
+    !     comando_nano = 'nano "' // trim(ruta%rutaruta) // '/datos_' // trim(ruta%nombre_imagen) // '.txt"'
+    ! end subroutine escribirnano
 
     ! subroutine leer_parametros_simulacion()
     !     implicit none

@@ -1,1 +1,0 @@
- Di,nlp,z0,alfa,beta,gamma,np,phi

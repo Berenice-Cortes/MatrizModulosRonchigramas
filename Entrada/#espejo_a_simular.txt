@@ -1,0 +1,3 @@
+URL de carpeta matriz de plantillas: /Users/berenicecortes/matriz_mod_tesis/Entrada/#espejo_a_simular.txt
+Nombre carpeta: carpeta5
+Nombre imagen: z0100rc101k0
