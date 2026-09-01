@@ -1,21 +1,24 @@
-! piezas varias ====================================================================================================================
-! ==================================================================================================================================
-! =========================================utiles o inicialización=====================================================================
-! ==================================================================================================================================
 module utiles
     implicit none
     integer, parameter :: dp = kind(0.0d0) !Aquí lo que se use en cualquier subrutina
+    real(dp), parameter :: pi=3.1415926535_dp
 
     type :: registro_tiempo
         integer(8) :: count_inicio, count_rate, count_final, valores(8)
         real(dp) :: t_inicial, t_final, tiempo_real, tiempo
     end type registro_tiempo
     type(registro_tiempo) :: reloj
+
+    type :: dowhile
+        logical :: ajuste_ok
+        character(len=20) :: respuesta
+    end type dowhile
+    type(dowhile) :: while
     
     type :: url_rutas
         character(len=256) :: carp_plant, carpeta, nombre_imagen
-        character(len=250) :: rutaruta
-        character(len=130) :: rutap
+        character(len=350) ::  url_carpeta_caso
+        character(len=400) :: arch_param
     end type url_rutas
     type(url_rutas) :: ruta
 
@@ -36,6 +39,8 @@ module utiles
     type :: parametros_espejo
         real(dp) :: di, nlp, z0, alfa, beta, gamma, phi, delta
         integer :: np
+
+        real(dp) :: rc, k
     end type parametros_espejo
     type(parametros_espejo) :: datos_esp
 
@@ -43,6 +48,11 @@ module utiles
         real(dp) :: sigma
     end type param_filtros_ajustes_datos
     type(param_filtros_ajustes_datos) :: filt
+
+    type, public :: calc_aberr
+        integer :: var
+    
+    end type calc_aberr
 
 contains
     subroutine reloj_inicio()
@@ -79,7 +89,15 @@ contains
         print*, "PROCESO FINALIZADO CON ÉXITO"
     end subroutine reloj_fin
 
-    subroutine crear_directorios_ficheros_IO()
+    function afirmativo(resp) result(comprob)
+        implicit none
+        character(len=20) :: resp
+        logical :: comprob
+        
+        comprob=(resp=='s'.or.resp=='S'.or.resp=='Sí'.or.resp=='sí')
+    end function afirmativo
+
+    subroutine crear_directorios_IO()
         !Sirve para Fortran 2008 en adelante
         implicit none
         integer :: cmd_status
@@ -98,14 +116,6 @@ contains
             write(*,*) 'Directorio listo: ', "Entrada"
         end if
 
-     ! =======================================================================================================================
-        open(30,file='Entrada/#espejo_a_simular.txt',status='replace',action='write')
-            write(30,'(A)') 'URL de carpeta matriz de plantillas:'
-            write(30,'(A)') 'Nombre carpeta:'
-            write(30,'(A)') 'Nombre imagen:'
-        close(30)
-     ! =======================================================================================================================
-
         call execute_command_line('mkdir -p "Salida"', exitstat=cmd_status)
 
         ! En Windows (cmd):
@@ -117,22 +127,37 @@ contains
         else
             write(*,*) 'Directorio listo: ', "Salida"
         end if
+    end subroutine crear_directorios_IO
 
-     ! =======================================================================================================================
-        open(30,file='Salida/url_donde_guardara_archivos_generados.txt',status='replace',action='write')
-            write(30,'(A)') 'URL archivos generados:'
+    subroutine introducir_rutasynombres_desdeterminal()
+        ruta%carp_plant= '/Users/berenicecortes/matriz_mod_tesis/Entrada'
+        ruta%carpeta = 'carpeta5'; ruta%nombre_imagen = 'rc9840z09340ke'
+        write(*,'(A)') 'Introduce la ruta de la carpeta matriz de plantillas (De donde se va a sacar la información): '
+        ! read(*,*) ruta%carp_plant
+        ! write(*,'(A)') 'Nombre que se le dara a la carpeta de caso: '
+        ! read(*,*) ruta%carpeta
+        ! write(*,'(A)') 'Nombre que se le dará a la imagen: '
+        ! read(*,*) ruta%nombre_imagen
+
+        open(30,file="Entrada/ruta_carpetas_extraccion.txt",status='replace',action='write')
+            write(30,'(A,2X,A)') 'URL de carpeta matriz de plantillas:', ruta%carp_plant
+            write(30,'(A,2X,A)') 'Nombre carpeta | (zn_z0##):', ruta%carpeta
+            write(30,'(A,2X,A)') 'Nombre imagen | (z0####rc####k####):', ruta%nombre_imagen
         close(30)
-     ! =======================================================================================================================
-    end subroutine crear_directorios_ficheros_IO
 
-    subroutine editarnano()
+        open(30,file='Salida/url_donde_guardara_archivos_generados.txt',status='replace',action='write')
+            write(30,'(A)') 'URL archivos generados:', ruta%carp_plant
+        close(30)
+    end subroutine introducir_rutasynombres_desdeterminal
+
+    subroutine editarnanourl()
         implicit none
         character(len=500) :: comando_nano
         integer :: ierr
 
         comando_nano = 'nano "Entrada/#espejo_a_simular.txt"'
         call execute_command_line(trim(comando_nano), wait=.true., exitstat=ierr)
-    end subroutine editarnano
+    end subroutine editarnanourl
 
     function leer_valor(unit_num) result(val)
         integer, intent(in) :: unit_num
@@ -144,192 +169,390 @@ contains
     subroutine leer_primigenios()
         implicit none
 
-        open(30,file='Entrada/#espejo_a_simular.txt',status='old',action='read')
-        ! read(30,'(A),:,(A)') ruta%carp_plant
+        open(30,file='Entrada/ruta_carpetas_extraccion.txt',status='old',action='read')
             ruta%carp_plant = leer_valor(30)
+            ruta%carpeta = leer_valor(30)
+            ruta%nombre_imagen = leer_valor(30)
         close(30)
 
-        print *, "Ruta:   ", trim(ruta%carp_plant)
+        print *, "Carpeta matriz de parametros:   ", trim(ruta%carp_plant)
+        print *, "Nombre de carpeta de ronchigram:   ", trim(ruta%carpeta)
+        print *, "Nombre de imagen (con datos) de ronchigram:   ", trim(ruta%nombre_imagen)
     end subroutine leer_primigenios
 
-    ! subroutine crear_directorios_IO()
-    !     !Sirve para Fortran 2008 en adelante
-    !     implicit none
-    !     integer :: cmd_status
+    subroutine trim_carpeta_caso()
+        implicit none
+        ruta%url_carpeta_caso = trim(trim(ruta%carp_plant)//'/'//trim(ruta%carpeta))
+        print *, "Carpeta del caso:   ", ruta%url_carpeta_caso
+    end subroutine trim_carpeta_caso
 
-    !     ! Crear la carpeta en el sistema operativo
-    !     ! En Linux / macOS / Unix:
-    !     call execute_command_line('mkdir -p "Entrada"', exitstat=cmd_status)
+    subroutine crear_directorio_carpetacaso()
+        !Sirve para Fortran 2008 en adelante
+        implicit none
+        integer :: cmd_status
 
-    !     ! En Windows (cmd):
-    !     ! call execute_command_line('mkdir "' // trim(carp_plant) // '"', exitstat=cmd_status)
+        ! Crear la carpeta en el sistema operativo
+        ! En Linux / macOS / Unix:
+        call execute_command_line('mkdir -p "'//trim(ruta%url_carpeta_caso)//'"', exitstat=cmd_status)
 
-    !     ! Verificar si se creó correctamente
-    !     if (cmd_status /= 0) then
-    !         write(*,*) 'Error: No se pudo crear el directorio: ', "Entrada"
-    !     else
-    !         write(*,*) 'Directorio listo: ', "Entrada"
-    !     end if
+        ! En Windows (cmd):
+        ! call execute_command_line('mkdir "' // trim(carp_plant) // '"', exitstat=cmd_status)
 
-    !  ! =======================================================================================================================
+        ! Verificar si se creó correctamente
+        if (cmd_status /= 0) then
+            write(*,*) 'Error: No se pudo crear el directorio: ', trim(ruta%url_carpeta_caso)
+        else
+            write(*,*) 'Directorio listo: ', trim(ruta%url_carpeta_caso)
+        end if
+    end subroutine crear_directorio_carpetacaso
 
-    !     call execute_command_line('mkdir -p "Salida"', exitstat=cmd_status)
+    subroutine asignar_rutas()
+        implicit none
+        ! ruta%url_param = trim(ruta%carp_plant)//trim('/#espejo_a_simular.txt')
+        ! ruta%url_param = trim(ruta%carp_plant)//'/'//trim(ruta%nombre_imagen)
+        ruta%arch_param = trim(ruta%url_carpeta_caso)//'/datos_'//trim(ruta%nombre_imagen)//'.txt'
+        print('(A,X,A)'), 'Archivo de datos:', trim(ruta%arch_param)
+    end subroutine asignar_rutas
 
-    !     ! En Windows (cmd):
-    !     ! call execute_command_line('mkdir "' // trim(carp_plant) // '"', exitstat=cmd_status)
+! ==================================================================================================================================
+    subroutine crear_fichero_datos_prueba()
+        implicit none
+        open(30,file=trim(ruta%url_carpeta_caso)//'/prueba_'//trim(ruta%nombre_imagen)//'.txt',status='replace',action='write')
+            write(30,'(A)') 'Di,nlp,z0,alfa,beta,gamma,np,phi'
+            write(30,'(F15.8,F15.8,F15.8,F15.8,F15.8,F15.8,I10,F15.8)') 7.0,50.0,93.4,0.0,0.0,93.4,50,0.018
+        close(30)
+    end subroutine crear_fichero_datos_prueba
 
-    !     ! Verificar si se creó correctamente
-    !     if (cmd_status /= 0) then
-    !         write(*,*) 'Error: No se pudo crear el directorio: ', "Salida"
-    !     else
-    !         write(*,*) 'Directorio listo: ', "Salida"
-    !     end if
+    subroutine leer_datos_pruebas()
+        implicit none
+        open(30,file=trim(ruta%url_carpeta_caso)//'/prueba_'//trim(ruta%nombre_imagen)//'.txt',status='old',action='read')
+            read(30,*)
+            read(30,*) datos_esp%di,datos_esp%nlp,datos_esp%z0,datos_esp%alfa,datos_esp%beta,datos_esp%gamma,&
+            &datos_esp%np,datos_esp%phi
+        close(30)
+    end subroutine leer_datos_pruebas
 
-    ! end subroutine crear_directorios_IO
+    subroutine crear_fichero_datosparam()
+        implicit none
+        open(30,file=trim(ruta%arch_param),status='replace',action='write')
+            write(30,'(A,X,F20.8)') 'Diametro:'
+            write(30,'(A,X,I4)') 'Nlp:'
+            write(30,'(A,X,F20.8)') 'z0:'
+            write(30,'(A,X,F20.8)') 'alfa:'
+            write(30,'(A,X,F20.8)') 'beta:'
+            write(30,'(A,X,F20.8)') 'gamma:'
+            write(30,'(A,X,I8)') 'np:'
+            write(30,'(A,X,F15.12)') 'phi:'
+        close(30)
+    end subroutine crear_fichero_datosparam
 
-    ! subroutine rutas_carpetas()
-    !     implicit none
+    subroutine pedir_datosparam_terminal()
+        implicit none
+        write(*,'(A,X)') 'Diametro:'
+        read(*,*) datos_esp%di
+        write(*,'(A,X)') 'Nlp:'
+        read(*,*) datos_esp%nlp
+        write(*,'(A,X)') 'z0:'
+        read(*,*) datos_esp%z0
+        write(*,'(A,X)') 'alfa:'
+        read(*,*) datos_esp%alfa
+        write(*,'(A,X)') 'beta:'
+        read(*,*) datos_esp%beta
+        write(*,'(A,X)') 'gamma:'
+        read(*,*) datos_esp%gamma
+        write(*,'(A,X)') 'np:'
+        read(*,*) datos_esp%np
+        write(*,'(A,X)') 'phi:'
+        read(*,*) datos_esp%phi
+    end subroutine pedir_datosparam_terminal
 
-    !     open(30,file='Salida/url_ubicacion_guardar_archivos_generados.txt',status='old',action='read')
-    !         read(30,'(A)')
-    !         read(30,'(A)') ruta%carp_plant
-    !     close(30)
+    subroutine vaciar_determinal_datosparam()
+        implicit none
+        open(30,file=trim(ruta%arch_param),status='replace',action='write')
+            write(30,'(A,X,F20.8)') 'Diametro:', datos_esp%di
+            write(30,'(A,6X,F20.8)') 'Nlp:', datos_esp%nlp
+            write(30,'(A,7X,F20.8)') 'z0:', datos_esp%z0
+            write(30,'(A,5X,F20.8)') 'alfa:', datos_esp%alfa
+            write(30,'(A,5X,F20.8)') 'beta:', datos_esp%beta
+            write(30,'(A,4X,F20.8)') 'gamma:', datos_esp%gamma
+            write(30,'(A,7X,I10)') 'np:', datos_esp%np
+            write(30,'(A,6X,F20.8)') 'phi:', datos_esp%phi
+        close(30)
+    end subroutine vaciar_determinal_datosparam
 
-    !     print*, 'la ruta que saca es:', trim(ruta%carp_plant)//'/#espejo_a_simular.txt'
-    !     ruta%rutap= trim(ruta%carp_plant)//'/#espejo_a_simular.txt'
+    subroutine recibirterycrear_dat_fichero_datosparam()
+        implicit none
+        write(*,'(A,X)') 'Diametro:'
+        read(*,*) datos_esp%di
+        write(*,'(A,X)') 'Nlp:'
+        read(*,*) datos_esp%nlp
+        write(*,'(A,X)') 'z0:'
+        read(*,*) datos_esp%z0
+        write(*,'(A,X)') 'alfa:'
+        read(*,*) datos_esp%alfa
+        write(*,'(A,X)') 'beta:'
+        read(*,*) datos_esp%beta
+        write(*,'(A,X)') 'gamma:'
+        read(*,*) datos_esp%gamma
+        write(*,'(A,X)') 'np:'
+        read(*,*) datos_esp%np
+        write(*,'(A,X)') 'phi:'
+        read(*,*) datos_esp%phi
 
-    !     open(30,file= trim(ruta%rutap),status='old',action='read')
-    !     ! open(30,file=trim(ruta%carp_plant)//trim('/#espejo_a_simular.txt'),status='old',action='read')
-    !         read(30,'(A)') ruta%nombre_imagen
-    !     close(30)
-    ! endsubroutine rutas_carpetas
+        open(30,file=trim(ruta%arch_param),status='replace',action='write')
+            write(30,'(A,X,F20.8)') 'Diametro:', datos_esp%di
+            write(30,'(A,X,I4)') 'Nlp:', datos_esp%nlp
+            write(30,'(A,X,F20.8)') 'z0:', datos_esp%z0
+            write(30,'(A,X,F20.8)') 'alfa:', datos_esp%alfa
+            write(30,'(A,X,F20.8)') 'beta:', datos_esp%beta
+            write(30,'(A,X,F20.8)') 'gamma:', datos_esp%gamma
+            write(30,'(A,X,I8)') 'np:', datos_esp%np
+            write(30,'(A,X,F15.12)') 'phi:', datos_esp%phi
+        close(30)
+    end subroutine recibirterycrear_dat_fichero_datosparam
 
-    ! subroutine ficheros_IO()
-    !     implicit none
+    subroutine editarnano_datosparam()
+        implicit none
+        character(len=500) :: comando_nano
+        integer :: ierr
 
-    !     open(unit=40, file='Entrada' // '/datos_.txt', status='replace', action='write')
-    !         write(40, *) 'Di,nlp,z0,alfa,beta,gamma,np,phi'
-    !     close(40)
+        comando_nano = 'nano "'//trim(ruta%arch_param)//'"'
+        call execute_command_line(trim(comando_nano), wait=.true., exitstat=ierr)
+    end subroutine editarnano_datosparam
 
-    !     open(unit=40, file='Salida' // '/url_ubicacion_guardar_archivos_generados.txt', status='replace', action='write')
-    !         write(40, *) 'Aquí va la ubicación de la carpeta donde se guardara: png-'
-    !         write(40, '(A)') '/Users/berenicecortes/Desktop/carpeta_de_carpetas_plantillas'
-    !     close(40)
-    ! end subroutine ficheros_IO
+    subroutine leer_archivo() !creo que no es necesario porque se asigna en la lectura. (en reiniciar no)
+        implicit none
+        character(len=256) :: A
+        real(dp) :: numbero
+        integer :: I
+        open(30,file=trim(ruta%arch_param),status='old',action='read')
+            A=leer_valor(30); read(A,*) numbero; datos_esp%di=numbero!leer como string y cambiar a tipo de varible
+            A=leer_valor(30); read(A,*) numbero; datos_esp%nlp=numbero
+            A=leer_valor(30); read(A,*) numbero; datos_esp%z0=numbero
+            A=leer_valor(30); read(A,*) numbero; datos_esp%alfa=numbero
+            A=leer_valor(30); read(A,*) numbero; datos_esp%beta=numbero
+            A=leer_valor(30); read(A,*) numbero; datos_esp%gamma=numbero
+            A=leer_valor(30); read(A,*) I; datos_esp%np=I
+            A=leer_valor(30); read(A,*) numbero; datos_esp%phi=numbero
 
-    ! subroutine escribirnano()
-    !     implicit none
-    !     character(len=500) :: comando_nano
+            ! print*, "Leer valor sin trim: ", A
+            ! print*, 'Ahora numero', numbero
+            ! read(30,'(A,X,F20.8)') A,datos_esp%di !leer como string y cambiar a tipo de varible
+            ! read(30,'(A,X,I4)') A,A,datos_esp%nlp
+            ! read(30,'(A,X,F20.8)') A, datos_esp%z0
+            ! read(30,'(A,X,F20.8)') A, datos_esp%alfa
+            ! read(30,'(A,X,F20.8)') A, datos_esp%beta
+            ! read(30,'(A,X,F20.8)') A, datos_esp%gamma
+            ! read(30,'(A,X,I8)') A, datos_esp%np
+            ! write(30,'(A,X,F15.12)') A, datos_esp%phi
+        close(30)
+    end subroutine leer_archivo
+! ==================================================================================================================================
 
-    !     print('(A)'), trim(ruta%rutaruta)//'/datos_'//trim(ruta%nombre_imagen)//'.txt'
-    !     comando_nano = 'nano "' // trim(ruta%rutaruta) // '/datos_' // trim(ruta%nombre_imagen) // '.txt"'
-    ! end subroutine escribirnano
-
-    ! subroutine leer_parametros_simulacion()
-    !     implicit none
-    !     ! datos_esp%di = 14.0_dp; datos_esp%nlp = 50.0_dp; datos_esp%z0= 99.5_dp
-    !     ! datos_esp%alfa = 0.0_dp; datos_esp%beta = 0.0_dp; datos_esp%gamma= 99.5_dp
-    !     ! datos_esp%np=50; datos_esp%phi=0.0_dp
-    !     open(30,file= trim(ruta%rutaruta) // '/datos_' // trim(ruta%nombre_imagen) // '.txt',status='old',action='read') !trim(rutas%ruta_datos)
-    !     read(30,*)
-    !     read(30,*) datos_esp%di,datos_esp%nlp,datos_esp%z0,datos_esp%alfa,datos_esp%beta,datos_esp%gamma,&
-    !     &datos_esp%np,datos_esp%phi
-    !     close(30)
-    ! end subroutine leer_parametros_simulacion
-
-    ! ! subroutine numero_azar(v1,v2)
-    !  !     !Ver si es mejor subrutina o una función, para dar rango y paso. 
-    !  !     implicit none
-    !  !     real(dp), intent(in):: val_in,num_decim,rango
-    !  !     real(dp), intent(out):: v1,v2
-    !  !     real(dp) :: a,b
-
-    !  !     call random_number(a); call random_number(b); 
-    !  !     write(*,'(A,F20.16)') 'Sin redondear Valor de a =', a
-    !  !     write(*,'(A,F20.17)') 'Sin redondear Valor de b =', b
-    !  !     ! Redondea a 4 decimales
-    !  !     a = anint(a * 10.0_dp) / 10.0_dp
-    !  !     b = anint(b * 10.0_dp) / 10.0_dp
-    !  !     write(*,'(A,F20.16)') 'Redondeado Valor de a =', a
-    !  !     write(*,'(A,F20.17)') 'Redondeado Valor de b =', b
-
-    !  !     v1 = 100.0_dp + a
-    !  !     v2 = 0.0_dp + b
-    ! ! endsubroutine numero_azar
-
-    ! subroutine decimal_azar(num_decim,d1,d2)
-    !     !Ver si es mejor subrutina o una función, para dar rango y paso. 
-    !     implicit none
-    !     real(dp), intent(in):: num_decim
-    !     real(dp), intent(out):: d1,d2
-
-    !     call random_number(d1); call random_number(d2); 
-    !     write(*,'(A,F20.16)') 'Sin redondear Valor de a =', d1
-    !     write(*,'(A,F20.17)') 'Sin redondear Valor de b =', d2
-    !     ! Redondea a 4 decimales
-    !     d1 = anint(d1 * num_decim) / num_decim
-    !     d2 = anint(d2 * num_decim) / num_decim
-    ! endsubroutine decimal_azar
-
-    ! subroutine parameter_azar(num_decim,min_val,max_val,paramet)
-    !     !Ver si es mejor subrutina o una función, para dar rango y paso. 
-    !     implicit none
-    !     real(dp), intent(in):: num_decim,min_val,max_val
-    !     real(dp), intent(out):: paramet
-
-
-    !     call random_number(paramet);
-
-    !     paramet=min_val + paramet * (max_val - min_val)
-    !     write(*,'(A,F20.16)') 'Sin redondear Valor de a =', paramet
-
-    !     paramet=anint(paramet*num_decim)/num_decim
-    ! endsubroutine parameter_azar
-
-    ! function func_param_azar(cantidad_decim, min_val, max_val) result(paramet)
-    !     implicit none
-    !     ! Recibe el factor (10.0, 100.0, etc.), el mínimo y el máximo
-    !     integer, intent(in) :: cantidad_decim
-    !     real(dp), intent(in) :: min_val, max_val
-    !     real(dp) :: factor_decim
-    !     real(dp)             :: paramet
-    !     integer :: i
+    function func_param_azar(cantidad_decim, min_val, max_val) result(paramet)
+        implicit none
+        ! Recibe el factor (10.0, 100.0, etc.), el mínimo y el máximo
+        integer, intent(in) :: cantidad_decim
+        real(dp), intent(in) :: min_val, max_val
+        real(dp) :: factor_decim
+        real(dp)             :: paramet
+        integer :: i
         
-    !     ! 1. Genera el número aleatorio base en [0.0, 1.0)
-    !     call random_number(paramet)
+        ! 1. Genera el número aleatorio base en [0.0, 1.0)
+        call random_number(paramet)
         
-    !     ! 2. Escala al rango físico real
-    !     paramet = min_val + paramet * (max_val - min_val)
+        ! 2. Escala al rango físico real
+        paramet = min_val + paramet * (max_val - min_val)
         
-    !     ! 3. Redondea usando tu factor basado en potencias de 10
-    !     factor_decim=1.0_dp
-    !     do i = 1, cantidad_decim
-    !         factor_decim=factor_decim*10 
-    !     end do
-    !     paramet = anint(paramet * factor_decim) / factor_decim
-    ! end function func_param_azar
+        ! 3. Redondea usando tu factor basado en potencias de 10
+        factor_decim=1.0_dp
+        do i = 1, cantidad_decim
+            factor_decim=factor_decim*10 
+        end do
+        paramet = anint(paramet * factor_decim) / factor_decim
+    end function func_param_azar
 
-    ! subroutine agregar_dat_exp()
-    !     integer :: i, posicion
-    !     real(8) :: coorinfl(cont_pin+2, 3), coor_x_max
-    !     open(11, file=trim(carpeta)//'maximini.txt', status='old')
-    !     read(11,*)
-    !     do i = 1, cont_pin + 2
-    !         read(11,*) posicion, coorinfl(i,2), coorinfl(i,3)
-    !     end do
-    !     close(11)
-    !     coor_x_max = coorinfl((cont_pin/2) + 2, 2)
-    !     open(unit=10, file=datos, status="unknown", position="append")
-    !     write(10,*) m_dat, (coord_centrox - coor_x_max) * un_pixel
-    !     close(10)
-    ! end subroutine agregar_dat_exp 
 end module utiles
+
+module inicios
+    implicit none
+    
+contains
+    subroutine inicio()
+        use utiles
+        implicit none
+
+        write(*,*) '¿Quieres iniciar/reiniciar las carpetas? (Afirmatuvo: Sí,s)'
+        read(*,*) while%respuesta
+        while%ajuste_ok = afirmativo(while%respuesta)
+
+        if ( while%ajuste_ok ) call inicializar
+
+        call editar
+    end subroutine inicio
+
+    subroutine inicializar()
+        use utiles
+        implicit none
+        call reloj_inicio()
+        call crear_directorios_IO()
+        call introducir_rutasynombres_desdeterminal()
+        call leer_primigenios()
+        call trim_carpeta_caso()
+        call crear_directorio_carpetacaso()
+        call asignar_rutas()
+        call crear_fichero_datos_prueba()
+        call leer_datos_pruebas()
+        call vaciar_determinal_datosparam()
+    end subroutine inicializar
+
+    subroutine editar()
+        use utiles
+        implicit none
+        
+        call reloj_inicio()
+        call leer_primigenios()
+        call trim_carpeta_caso()
+        call asignar_rutas()
+
+        write(*,*) '¿Quieres cambiar los parametros?'
+        read(*,*) while%respuesta
+
+        while%ajuste_ok = afirmativo(while%respuesta)
+
+        if ( while%ajuste_ok ) then
+            call editarnano_datosparam
+        end if
+
+        call leer_archivo()
+    end subroutine editar
+    
+end module inicios
+
+module calculos_sagita
+    use utiles
+    implicit none
+    real(dp) :: sdi, delta, ra, c, x, y, raiz,z,zx,zy,raiz_max,z_max,deno,numx0,numy0,tx,ty,tx_ron,ty_ron
+    character(len=3) :: tipo_rejilla
+contains
+    subroutine puntos_txt(tipo)
+        implicit none
+        character(len=3), intent(in) :: tipo
+
+        call ctes_sim
+        call ciclodo(tipo)
+        
+    end subroutine puntos_txt
+
+    subroutine ctes_sim()
+        implicit none
+        sdi=datos_esp%di/2.0_dp; delta=2.54_dp/datos_esp%np; c=1.0_dp/datos_esp%rc
+    end subroutine ctes_sim
+
+    subroutine ciclodo(tipo)
+        implicit none
+        character(len=3), intent(in) :: tipo
+        integer :: i,j
+
+        open(40,file="salida/ronchigrama_comp.txt",status='replace')
+        do i=-datos_esp%np,datos_esp%np,1
+            do j=-datos_esp%np,datos_esp%np,1
+                x=(real(i,dp)*sdi)/real(datos_esp%np,dp); y=(real(j,dp)*sdi)/real(datos_esp%np,dp)
+                ra = dist(x,y)
+                if ( ra<=sdi) then
+                    call comun(datos_esp%k,c,ra,x,y,sdi,raiz,z,zx,zy,raiz_max,z_max,deno) !cuál es constante?
+                    numx0 = num(x,y,zx,zy,datos_esp%alfa,datos_esp%beta,z)
+                    numy0 = num(y,x,zy,zx,datos_esp%beta,datos_esp%alfa,z)
+                    tx = aberracion_t(x,datos_esp%z0,z,numx0,deno)
+
+                    tx_ron=aberracion_t(x,datos_esp%z0,z,numx0,deno)
+                    ty_ron=aberracion_t(x,z_max,z,numx0,deno)
+                    call rejilla(tipo,tx,tx_ron,ty_ron)
+                end if
+            end do
+        end do
+        close(40)
+    end subroutine ciclodo
+
+    function dist(a,b) result(c)
+        implicit none
+        real(dp), intent(in) :: a,b
+        real(dp) :: c
+        c=dsqrt(a**2+b**2)
+    end function dist
+
+    subroutine comun(k,c,ra,x,y,sdi,raiz,z,zx,zy,raiz_max,z_max,deno)
+        implicit none
+        real(dp), intent(in) :: k,c,ra,x,y,sdi
+        real(dp), intent(out) :: raiz,z,zx,zy,raiz_max,z_max,deno
+        
+        raiz=dsqrt(1.0_dp-(k+1.0_dp)*c**2*ra**2)
+        z=(c*ra**2)/(1.0_dp+raiz)
+        zx=c*x/(raiz)
+        zy=c*y/(raiz)
+
+        raiz_max=dsqrt(1.0_dp-(k+1.0_dp)*c**2*sdi**2)
+        z_max=(c*sdi**2)/(1.0_dp+raiz_max)
+        deno=(datos_esp%gamma-z)*(1.0_dp-zx*zx-zy*zy)+2.0_dp*(zx*(x-datos_esp%alfa)+zy*(y-datos_esp%beta))
+    end subroutine comun
+    
+    function num(vi,vj,pvi,pvj,vli,vlj,vk) result(numerador_i)
+        implicit none
+        real(dp), intent(in):: vi,vj,pvi,pvj,vli,vlj,vk
+        real(dp) :: numerador_i
+        numerador_i = (vi-vli)*(1.0_dp-pvi*pvi+pvj*pvj)-2.0_dp*pvi*(pvj*(vj-vlj)+(datos_esp%gamma-vk))
+    end function num
+
+    function aberracion_t(vi,vkp,vk,nume,denom) result(abtr)
+        real(dp), intent(in) :: vi,vk,nume,denom,vkp
+        real(dp) :: abtr
+
+        abtr = vi+(vkp-vk)*(nume/denom)
+    end function aberracion_t
+
+    subroutine rejilla(tipo,aberr_tx,tx_esp,ty_esp)
+        implicit none
+        character(len=3), intent(in) :: tipo
+        real(dp), intent(in) :: aberr_tx,tx_esp,ty_esp
+        real(dp)::argx,x_visib,y_visib
+
+        argx=(2.0_dp*pi*aberr_tx/delta)
+
+        if(tipo=='bin') then
+            write(40,*) tx_esp,ty_esp,(dcos(argx)+1)/2
+        else if(tipo=='cos') then
+            if(dcos(argx)>0.0_dp) then
+                x_visib=tx_esp; y_visib=ty_esp
+                write(40,*) x_visib,y_visib
+            endif
+        endif
+
+    end subroutine rejilla
+
+    subroutine rejilla2(tipo,aberr_tx,aberr_ty)
+        implicit none
+        character(len=3), intent(in) :: tipo
+        real(dp), intent(in) :: aberr_tx,aberr_ty
+        real(dp)::argx,argy
+
+        if(tipo=='bin2') then
+        ! write(40,*) txron,tyron,(dcos(argx)+1)/2
+        ! if(dcos(argx)>0.0_dp) then
+        !         write(40,*) txron,tyron
+        !     endif
+        else if(tipo=='cos2') then
+
+        endif
+
+        argx=(2.0_dp*pi*aberr_tx/delta); argy=(2.0_dp*pi*aberr_ty/delta)
+    end subroutine rejilla2
+end module calculos_sagita
 
 ! module calculos_varios
 !     use utiles
 !     implicit none
 ! contains
-!      subroutine normalizar()
+!     subroutine normalizar()
 !         integer :: i, j, a, b
 !         real(8), allocatable :: pos_pix(:), irrad(:), dummy(:)
 !         real(8) :: punt_inf(cont_pin+2, 4)
@@ -368,9 +591,9 @@ end module utiles
 !         m_dat = m_dat + 1
 !         close(27)
 !         deallocate(pos_pix, irrad, dummy)
-!      end subroutine normalizar
+!     end subroutine normalizar
 
-!      subroutine reescalar_coord()
+!     subroutine reescalar_coord()
 !         integer :: i
 !         real(8), allocatable :: x(:), y(:)
 !         allocate(x(m_dat), y(m_dat))
@@ -385,9 +608,9 @@ end module utiles
 !         end do
 !         close(10)
 !         deallocate(x, y)
-!      end subroutine reescalar_coord
+!     end subroutine reescalar_coord
 
-!      subroutine reordenar_trenza(arreglo)
+!     subroutine reordenar_trenza(arreglo)
 !         implicit none
 !         real(dp), intent(inout) :: arreglo(:,:)
 !         real(dp), allocatable :: nuevo(:,:)
@@ -427,8 +650,7 @@ end module utiles
 
 !         arreglo=nuevo
 !         deallocate(nuevo)
-!      end subroutine reordenar_trenza
-
+!     end subroutine reordenar_trenza
 ! end module calculos_varios
 
 ! module calculos_para_optimizacion
@@ -451,7 +673,6 @@ end module utiles
 !         end do
 !         !close(40)
 !         !close(41)
-        
 !     end subroutine dif_cuadrados
     
 !     subroutine arreglo_minman()
@@ -655,477 +876,7 @@ end module utiles
         
 !         deallocate(pos_pix, irrad, dummy, es_max, es_min)
 !     end subroutine txt_lista_minman
- 
 ! end module calculos_para_optimizacion
-
-! ! fin de piezas ====================================================================================================================
-! ! ==================================================================================================================================
-! ! ==================================================================================================================================
-! ! ==================================================================================================================================
-
-
-! ! ARMADO ===========================================================================================================================
-! ! ==================================================================================================================================
-! ! ==================================================================================================================================
-! ! ==================================================================================================================================
-! module simulacion
-!     use utiles
-!     implicit none 
-! contains
-!     subroutine ronchigrama_simulado_cos(rc, k)
-!         real(dp), intent(in) :: rc, k
-!         real(dp) :: delta,sdi,c,x,y,ra,raiz,z,zx,zy,raiz_max,z_max
-!         real(dp) :: deno,numx0,numy0,tx,ty,txron,tyron,argx,argy
-!         real(dp), parameter :: pi=3.1415926535_dp !Buscar si estoy siendo redundante
-!         integer :: i,j
-    
-!         delta=2.54_dp/datos_esp%nlp; sdi=datos_esp%di/2.0_dp; c=1.0_dp/rc
-
-!         open(40,file="salida/ronchigrama_comp.txt",status='replace')
-!         do i=-datos_esp%np,datos_esp%np 
-!         do j=-datos_esp%np,datos_esp%np 
-!             x=dfloat(i)*sdi/dfloat(datos_esp%np)
-!             y=dfloat(j)*sdi/dfloat(datos_esp%np)
-
-!             ra=dsqrt(x**2+y**2)
-
-!             if (ra > sdi) cycle
-
-!             raiz=sqrt(1.0_dp-(k+1.0_dp)*c*c*ra*ra)
-!             z=(c*ra*ra/(1.0_dp+raiz)); zx=c*x/raiz; zy=c*y/raiz
-
-!             raiz_max = sqrt(1.0_dp-(k+1.0_dp)*c*c*sdi*sdi)
-!             z_max = (c*sdi*sdi)/(1.0_dp+raiz_max)
-
-!             deno=(datos_esp%gamma-z)*(1.0_dp-zx*zx-zy*zy)+2.0_dp*(zx*(x-datos_esp%alfa)+zy*(y-datos_esp%beta))
-!             numx0=(x-datos_esp%alfa)*(1.0_dp-zx*zx+zy*zy)-2.0_dp*zx*(zy*(y-datos_esp%beta)+(datos_esp%gamma-z))
-!             numy0=(y-datos_esp%beta)*(1.0_dp+zx*zx-zy*zy)-2.0_dp*zy*(zx*(x-datos_esp%alfa)+(datos_esp%gamma-z))
-
-!             tx=x+(datos_esp%z0-z)*numx0/deno; ty=y+(datos_esp%z0-z)*numy0/deno
-!             txron=x+(z_max-z)*numx0/deno; tyron=y+(z_max-z)*numy0/deno
-!             argx=(2.0_dp*pi*tx/delta); argy=(2.0_dp*pi*tx/delta)
-
-!             write(40,*) txron,tyron,(dcos(argx)+1)/2
-!         enddo   
-!         enddo
-!         close(40)
-!     end subroutine ronchigrama_simulado_cos
-
-!     subroutine ronchigrama_simulado_bin(rc, k)
-!         real(dp), intent(in) :: rc, k
-!         real(dp) :: delta,sdi,c,x,y,ra,raiz,z,zx,zy,raiz_max,z_max
-!         real(dp) :: deno,numx0,numy0,tx,ty,txron,tyron,argx,argy
-!         real(dp), parameter :: pi=3.1415926535_dp !Buscar si estoy siendo redundante
-!         integer :: i,j
-    
-!         delta=2.54_dp/datos_esp%nlp; sdi=datos_esp%di/2.0_dp; c=1.0_dp/rc
-
-!         open(40,file="salida/ronchigrama_comp.txt",status='replace')
-!         do i=-datos_esp%np,datos_esp%np 
-!         do j=-datos_esp%np,datos_esp%np 
-!             x=dfloat(i)*sdi/dfloat(datos_esp%np)
-!             y=dfloat(j)*sdi/dfloat(datos_esp%np)
-
-!             ra=dsqrt(x**2+y**2)
-
-!             if (ra > sdi) cycle
-
-!             raiz=sqrt(1.0_dp-(k+1.0_dp)*c*c*ra*ra)
-!             z=(c*ra*ra/(1.0_dp+raiz)); zx=c*x/raiz; zy=c*y/raiz
-
-!             raiz_max = sqrt(1.0_dp-(k+1.0_dp)*c*c*sdi*sdi)
-!             z_max = (c*sdi*sdi)/(1.0_dp+raiz_max)
-
-!             deno=(datos_esp%gamma-z)*(1.0_dp-zx*zx-zy*zy)+2.0_dp*(zx*(x-datos_esp%alfa)+zy*(y-datos_esp%beta))
-!             numx0=(x-datos_esp%alfa)*(1.0_dp-zx*zx+zy*zy)-2.0_dp*zx*(zy*(y-datos_esp%beta)+(datos_esp%gamma-z))
-!             numy0=(y-datos_esp%beta)*(1.0_dp+zx*zx-zy*zy)-2.0_dp*zy*(zx*(x-datos_esp%alfa)+(datos_esp%gamma-z))
-
-!             tx=x+(datos_esp%z0-z)*numx0/deno; ty=y+(datos_esp%z0-z)*numy0/deno
-!             txron=x+(z_max-z)*numx0/deno; tyron=y+(z_max-z)*numy0/deno
-!             argx=(2.0_dp*pi*tx/delta); argy=(2.0_dp*pi*tx/delta)
-
-!             if(dcos(argx)>0.0_dp) then
-!                 write(40,*) txron,tyron
-!             endif
-!         enddo   
-!         enddo
-!         close(40)
-!     end subroutine ronchigrama_simulado_bin
-
-!     subroutine franja_ronchigrama_simulado_cos(rc,k,valor_y1,valor_y2,NomArc)
-!         real(dp), intent(in) :: rc, k
-!         integer, intent(in) :: valor_y1,valor_y2
-!         character(len=20), intent(in) :: NomArc
-!         real(dp) :: delta,sdi,c,x,y,ra,raiz,z,zx,zy,raiz_max,z_max
-!         real(dp) :: deno,numx0,numy0,tx,ty,txron,tyron,argx,argy
-!         real(dp), parameter :: pi=3.1415926535_dp !Buscar si estoy siendo redundante
-!         integer :: i,j
-    
-!         delta=2.54_dp/datos_esp%nlp; sdi=datos_esp%di/2.0_dp; c=1.0_dp/rc
-
-!         open(40,file=trim(NomArc),status='replace')
-!         do i=-datos_esp%np,datos_esp%np 
-!         do j=valor_y1,valor_y2
-!             x=dfloat(i)*sdi/dfloat(datos_esp%np)
-!             y=dfloat(j)*sdi/dfloat(datos_esp%np)
-
-!             ra=dsqrt(x**2+y**2)
-
-!             if (ra > sdi) cycle
-
-!             raiz=sqrt(1.0_dp-(k+1.0_dp)*c*c*ra*ra)
-!             z=(c*ra*ra/(1.0_dp+raiz)); zx=c*x/raiz; zy=c*y/raiz
-
-!             raiz_max = sqrt(1.0_dp-(k+1.0_dp)*c*c*sdi*sdi)
-!             z_max = (c*sdi*sdi)/(1.0_dp+raiz_max)
-
-!             deno=(datos_esp%gamma-z)*(1.0_dp-zx*zx-zy*zy)+2.0_dp*(zx*(x-datos_esp%alfa)+zy*(y-datos_esp%beta))
-!             numx0=(x-datos_esp%alfa)*(1.0_dp-zx*zx+zy*zy)-2.0_dp*zx*(zy*(y-datos_esp%beta)+(datos_esp%gamma-z))
-!             numy0=(y-datos_esp%beta)*(1.0_dp+zx*zx-zy*zy)-2.0_dp*zy*(zx*(x-datos_esp%alfa)+(datos_esp%gamma-z))
-
-!             tx=x+(datos_esp%z0-z)*numx0/deno; ty=y+(datos_esp%z0-z)*numy0/deno
-!             txron=x+(z_max-z)*numx0/deno; tyron=y+(z_max-z)*numy0/deno
-!             argx=(2.0_dp*pi*tx/delta); argy=(2.0_dp*pi*tx/delta)
-
-!             write(40,*) txron,(dcos(argx)+1)/2
-!         enddo   
-!         enddo
-!         close(40)
-!     end subroutine franja_ronchigrama_simulado_cos
-
-!     subroutine franja_ronchigrama_simulado_bin(rc,k,valor_y1,valor_y2,NomArc)
-!         real(dp), intent(in) :: rc, k
-!         integer, intent(in) :: valor_y1,valor_y2
-!         character(len=20), intent(in) :: NomArc
-!         real(dp) :: delta,sdi,c,x,y,ra,raiz,z,zx,zy,raiz_max,z_max
-!         real(dp) :: deno,numx0,numy0,tx,ty,txron,tyron,argx,argy
-!         real(dp), parameter :: pi=3.1415926535_dp !Buscar si estoy siendo redundante
-!         integer :: i,j
-    
-!         delta=2.54_dp/datos_esp%nlp; sdi=datos_esp%di/2.0_dp; c=1.0_dp/rc
-
-!         open(40,file=trim(NomArc),status='replace')
-!         do i=-datos_esp%np,datos_esp%np 
-!         do j=valor_y1,valor_y2
-!             x=dfloat(i)*sdi/dfloat(datos_esp%np)
-!             y=dfloat(j)*sdi/dfloat(datos_esp%np)
-
-!             ra=dsqrt(x**2+y**2)
-
-!             if (ra > sdi) cycle
-
-!             raiz=sqrt(1.0_dp-(k+1.0_dp)*c*c*ra*ra)
-!             z=(c*ra*ra/(1.0_dp+raiz)); zx=c*x/raiz; zy=c*y/raiz
-
-!             raiz_max = sqrt(1.0_dp-(k+1.0_dp)*c*c*sdi*sdi)
-!             z_max = (c*sdi*sdi)/(1.0_dp+raiz_max)
-
-!             deno=(datos_esp%gamma-z)*(1.0_dp-zx*zx-zy*zy)+2.0_dp*(zx*(x-datos_esp%alfa)+zy*(y-datos_esp%beta))
-!             numx0=(x-datos_esp%alfa)*(1.0_dp-zx*zx+zy*zy)-2.0_dp*zx*(zy*(y-datos_esp%beta)+(datos_esp%gamma-z))
-!             numy0=(y-datos_esp%beta)*(1.0_dp+zx*zx-zy*zy)-2.0_dp*zy*(zx*(x-datos_esp%alfa)+(datos_esp%gamma-z))
-
-!             tx=x+(datos_esp%z0-z)*numx0/deno; ty=y+(datos_esp%z0-z)*numy0/deno
-!             txron=x+(z_max-z)*numx0/deno; tyron=y+(z_max-z)*numy0/deno
-!             argx=(2.0_dp*pi*tx/delta); argy=(2.0_dp*pi*tx/delta)
-
-!             if(dcos(argx)>0.0_dp) then
-!                 write(40,*) txron,tyron
-!             endif
-!         enddo   
-!         enddo
-!         close(40)
-!     end subroutine franja_ronchigrama_simulado_bin
-
-!     subroutine franja_simetrico_ronchigrama_simulado_cos(rc,k,valor_y,NomArc)
-!         real(dp), intent(in) :: rc, k
-!         integer, intent(in) :: valor_y
-!         character(len=20), intent(in) :: NomArc
-!         real(dp) :: delta,sdi,c,x,y,ra,raiz,z,zx,zy,raiz_max,z_max
-!         real(dp) :: deno,numx0,numy0,tx,ty,txron,tyron,argx,argy
-!         real(dp), parameter :: pi=3.1415926535_dp !Buscar si estoy siendo redundante
-!         integer :: i,j
-    
-!         delta=2.54_dp/datos_esp%nlp; sdi=datos_esp%di/2.0_dp; c=1.0_dp/rc
-
-!         open(40,file=trim(NomArc),status='replace')
-!         do i=-datos_esp%np,datos_esp%np 
-!         do j=-valor_y,valor_y
-!             x=dfloat(i)*sdi/dfloat(datos_esp%np)
-!             y=dfloat(j)*sdi/dfloat(datos_esp%np)
-
-!             ra=dsqrt(x**2+y**2)
-
-!             if (ra > sdi) cycle
-
-!             raiz=sqrt(1.0_dp-(k+1.0_dp)*c*c*ra*ra)
-!             z=(c*ra*ra/(1.0_dp+raiz)); zx=c*x/raiz; zy=c*y/raiz
-
-!             raiz_max = sqrt(1.0_dp-(k+1.0_dp)*c*c*sdi*sdi)
-!             z_max = (c*sdi*sdi)/(1.0_dp+raiz_max)
-
-!             deno=(datos_esp%gamma-z)*(1.0_dp-zx*zx-zy*zy)+2.0_dp*(zx*(x-datos_esp%alfa)+zy*(y-datos_esp%beta))
-!             numx0=(x-datos_esp%alfa)*(1.0_dp-zx*zx+zy*zy)-2.0_dp*zx*(zy*(y-datos_esp%beta)+(datos_esp%gamma-z))
-!             numy0=(y-datos_esp%beta)*(1.0_dp+zx*zx-zy*zy)-2.0_dp*zy*(zx*(x-datos_esp%alfa)+(datos_esp%gamma-z))
-
-!             tx=x+(datos_esp%z0-z)*numx0/deno; ty=y+(datos_esp%z0-z)*numy0/deno
-!             txron=x+(z_max-z)*numx0/deno; tyron=y+(z_max-z)*numy0/deno
-!             argx=(2.0_dp*pi*tx/delta); argy=(2.0_dp*pi*tx/delta)
-
-!             write(40,*) txron,(dcos(argx)+1)/2
-!         enddo   
-!         enddo
-!         close(40)
-!     end subroutine franja_simetrico_ronchigrama_simulado_cos
-
-!     subroutine franja_simetrico_ronchigrama_simulado_bin(rc,k,valor_y,NomArc)
-!         real(dp), intent(in) :: rc, k
-!         integer, intent(in) :: valor_y
-!         character(len=20), intent(in) :: NomArc
-!         real(dp) :: delta,sdi,c,x,y,ra,raiz,z,zx,zy,raiz_max,z_max
-!         real(dp) :: deno,numx0,numy0,tx,ty,txron,tyron,argx,argy
-!         real(dp), parameter :: pi=3.1415926535_dp !Buscar si estoy siendo redundante
-!         integer :: i,j
-    
-!         delta=2.54_dp/datos_esp%nlp; sdi=datos_esp%di/2.0_dp; c=1.0_dp/rc
-
-!         open(40,file=trim(NomArc),status='replace')
-!         do i=-datos_esp%np,datos_esp%np 
-!         do j=-valor_y,valor_y
-!             x=dfloat(i)*sdi/dfloat(datos_esp%np)
-!             y=dfloat(j)*sdi/dfloat(datos_esp%np)
-
-!             ra=dsqrt(x**2+y**2)
-
-!             if (ra > sdi) cycle
-
-!             raiz=sqrt(1.0_dp-(k+1.0_dp)*c*c*ra*ra)
-!             z=(c*ra*ra/(1.0_dp+raiz)); zx=c*x/raiz; zy=c*y/raiz
-
-!             raiz_max = sqrt(1.0_dp-(k+1.0_dp)*c*c*sdi*sdi)
-!             z_max = (c*sdi*sdi)/(1.0_dp+raiz_max)
-
-!             deno=(datos_esp%gamma-z)*(1.0_dp-zx*zx-zy*zy)+2.0_dp*(zx*(x-datos_esp%alfa)+zy*(y-datos_esp%beta))
-!             numx0=(x-datos_esp%alfa)*(1.0_dp-zx*zx+zy*zy)-2.0_dp*zx*(zy*(y-datos_esp%beta)+(datos_esp%gamma-z))
-!             numy0=(y-datos_esp%beta)*(1.0_dp+zx*zx-zy*zy)-2.0_dp*zy*(zx*(x-datos_esp%alfa)+(datos_esp%gamma-z))
-
-!             tx=x+(datos_esp%z0-z)*numx0/deno; ty=y+(datos_esp%z0-z)*numy0/deno
-!             txron=x+(z_max-z)*numx0/deno; tyron=y+(z_max-z)*numy0/deno
-!             argx=(2.0_dp*pi*tx/delta); argy=(2.0_dp*pi*tx/delta)
-
-!             if(dcos(argx)>0.0_dp) then
-!                 write(40,*) txron,tyron
-!             endif
-!         enddo   
-!         enddo
-!         close(40)
-!     end subroutine franja_simetrico_ronchigrama_simulado_bin
-
-!     subroutine fila_ronchigrama_simulado_cos(rc,k,valor_y,NomArc)
-!         real(dp), intent(in) :: rc, k
-!         integer, intent(in) :: valor_y
-!         character(len=20), intent(in) :: NomArc
-!         real(dp) :: delta,sdi,c,x,y,ra,raiz,z,zx,zy,raiz_max,z_max
-!         real(dp) :: deno,numx0,numy0,tx,ty,txron,tyron,argx,argy
-!         real(dp), parameter :: pi=3.1415926535_dp !Buscar si estoy siendo redundante
-!         integer :: i,j
-    
-!         delta=2.54_dp/datos_esp%nlp; sdi=datos_esp%di/2.0_dp; c=1.0_dp/rc
-
-!         open(40,file=trim(NomArc),status='replace')
-!         do i=-datos_esp%np,datos_esp%np 
-!            j=valor_y
-!             x=dfloat(i)*sdi/dfloat(datos_esp%np)
-!             y=dfloat(j)*sdi/dfloat(datos_esp%np)
-
-!             ra=dsqrt(x**2+y**2)
-
-!             if (ra > sdi) cycle
-
-!             raiz=sqrt(1.0_dp-(k+1.0_dp)*c*c*ra*ra)
-!             z=(c*ra*ra/(1.0_dp+raiz)); zx=c*x/raiz; zy=c*y/raiz
-
-!             raiz_max = sqrt(1.0_dp-(k+1.0_dp)*c*c*sdi*sdi)
-!             z_max = (c*sdi*sdi)/(1.0_dp+raiz_max)
-
-!             deno=(datos_esp%gamma-z)*(1.0_dp-zx*zx-zy*zy)+2.0_dp*(zx*(x-datos_esp%alfa)+zy*(y-datos_esp%beta))
-!             numx0=(x-datos_esp%alfa)*(1.0_dp-zx*zx+zy*zy)-2.0_dp*zx*(zy*(y-datos_esp%beta)+(datos_esp%gamma-z))
-!             numy0=(y-datos_esp%beta)*(1.0_dp+zx*zx-zy*zy)-2.0_dp*zy*(zx*(x-datos_esp%alfa)+(datos_esp%gamma-z))
-
-!             tx=x+(datos_esp%z0-z)*numx0/deno; ty=y+(datos_esp%z0-z)*numy0/deno
-!             txron=x+(z_max-z)*numx0/deno; tyron=y+(z_max-z)*numy0/deno
-!             argx=(2.0_dp*pi*tx/delta); argy=(2.0_dp*pi*tx/delta)
-
-!             write(40,*) txron,(dcos(argx)+1)/2   
-!         enddo
-!         close(40)
-!     end subroutine fila_ronchigrama_simulado_cos
-
-!     subroutine fila_ronchigrama_simulado_bin(rc,k,valor_y,NomArc)
-!         real(dp), intent(in) :: rc, k
-!         integer, intent(in) :: valor_y
-!         character(len=20), intent(in) :: NomArc
-!         real(dp) :: delta,sdi,c,x,y,ra,raiz,z,zx,zy,raiz_max,z_max
-!         real(dp) :: deno,numx0,numy0,tx,ty,txron,tyron,argx,argy
-!         real(dp), parameter :: pi=3.1415926535_dp !Buscar si estoy siendo redundante
-!         integer :: i,j
-    
-!         delta=2.54_dp/datos_esp%nlp; sdi=datos_esp%di/2.0_dp; c=1.0_dp/rc
-
-!         open(40,file=trim(NomArc),status='replace')
-!         do i=-datos_esp%np,datos_esp%np 
-!            j=valor_y
-
-!             x=dfloat(i)*sdi/dfloat(datos_esp%np)
-!             y=dfloat(j)*sdi/dfloat(datos_esp%np)
-
-!             ra=dsqrt(x**2+y**2)
-
-!             if (ra > sdi) cycle
-
-!             raiz=sqrt(1.0_dp-(k+1.0_dp)*c*c*ra*ra)
-!             z=(c*ra*ra/(1.0_dp+raiz)); zx=c*x/raiz; zy=c*y/raiz
-
-!             raiz_max = sqrt(1.0_dp-(k+1.0_dp)*c*c*sdi*sdi)
-!             z_max = (c*sdi*sdi)/(1.0_dp+raiz_max)
-
-!             deno=(datos_esp%gamma-z)*(1.0_dp-zx*zx-zy*zy)+2.0_dp*(zx*(x-datos_esp%alfa)+zy*(y-datos_esp%beta))
-!             numx0=(x-datos_esp%alfa)*(1.0_dp-zx*zx+zy*zy)-2.0_dp*zx*(zy*(y-datos_esp%beta)+(datos_esp%gamma-z))
-!             numy0=(y-datos_esp%beta)*(1.0_dp+zx*zx-zy*zy)-2.0_dp*zy*(zx*(x-datos_esp%alfa)+(datos_esp%gamma-z))
-
-!             tx=x+(datos_esp%z0-z)*numx0/deno; ty=y+(datos_esp%z0-z)*numy0/deno
-!             txron=x+(z_max-z)*numx0/deno; tyron=y+(z_max-z)*numy0/deno
-!             argx=(2.0_dp*pi*tx/delta); argy=(2.0_dp*pi*tx/delta)
-
-!             write(40,*) txron,(dcos(argx)+1)/2   
-!         enddo
-!         close(40)
-!     end subroutine fila_ronchigrama_simulado_bin
-
-!     subroutine fila_diam_ronchigrama_simulado_cos_array(rc,k,val_sim)
-!         real(dp), intent(in) :: rc, k
-!         real(dp), intent(inout) :: val_sim(:,:)
-!         real(dp) :: delta,sdi,c,x,y,ra,raiz,z,zx,zy,raiz_max,z_max
-!         real(dp) :: deno,numx0,numy0,tx,ty,txron,tyron,argx,argy
-!         real(dp), parameter :: pi=3.1415926535_dp !Buscar si estoy siendo redundante
-!         integer :: i,j,cont
-    
-!         delta=2.54_dp/datos_esp%nlp; sdi=datos_esp%di/2.0_dp; c=1.0_dp/rc
-!         cont=0
-
-!         !open(40,file=trim(NomArc),status='replace')
-!            j=0; cont=0
-!         do i=-datos_esp%np,datos_esp%np 
-!             cont=cont+1
-
-!             x=dfloat(i)*sdi/dfloat(datos_esp%np)
-!             y=dfloat(j)*sdi/dfloat(datos_esp%np)
-
-!             ra=dsqrt(x**2+y**2)
-
-!             if (ra > sdi) cycle
-
-!             raiz=sqrt(1.0_dp-(k+1.0_dp)*c*c*ra*ra)
-!             z=(c*ra*ra/(1.0_dp+raiz)); zx=c*x/raiz; zy=c*y/raiz
-
-!             raiz_max = sqrt(1.0_dp-(k+1.0_dp)*c*c*sdi*sdi)
-!             z_max = (c*sdi*sdi)/(1.0_dp+raiz_max)
-
-!             deno=(datos_esp%gamma-z)*(1.0_dp-zx*zx-zy*zy)+2.0_dp*(zx*(x-datos_esp%alfa)+zy*(y-datos_esp%beta))
-!             numx0=(x-datos_esp%alfa)*(1.0_dp-zx*zx+zy*zy)-2.0_dp*zx*(zy*(y-datos_esp%beta)+(datos_esp%gamma-z))
-!             numy0=(y-datos_esp%beta)*(1.0_dp+zx*zx-zy*zy)-2.0_dp*zy*(zx*(x-datos_esp%alfa)+(datos_esp%gamma-z))
-
-!             tx=x+(datos_esp%z0-z)*numx0/deno; ty=y+(datos_esp%z0-z)*numy0/deno
-!             txron=x+(z_max-z)*numx0/deno; tyron=y+(z_max-z)*numy0/deno
-!             argx=(2.0_dp*pi*tx/delta); argy=(2.0_dp*pi*tx/delta)
-
-!             !write(40,*) txron,(dcos(argx)+1)/2  
-!             val_sim(cont,1)= txron; val_sim(cont,2)= (dcos(argx)+1)/2  
-!         enddo
-!         !close(40)
-!     end subroutine fila_diam_ronchigrama_simulado_cos_array
-
-!     subroutine fila_diam_ronchigrama_simulado_cos(rc,k,NomArc)
-!         real(dp), intent(in) :: rc, k
-!         character(len=20), intent(in) :: NomArc
-!         real(dp) :: delta,sdi,c,x,y,ra,raiz,z,zx,zy,raiz_max,z_max
-!         real(dp) :: deno,numx0,numy0,tx,ty,txron,tyron,argx,argy
-!         real(dp), parameter :: pi=3.1415926535_dp !Buscar si estoy siendo redundante
-!         integer :: i,j,cont
-    
-!         delta=2.54_dp/datos_esp%nlp; sdi=datos_esp%di/2.0_dp; c=1.0_dp/rc
-!         cont=0
-
-!         open(40,file=trim(NomArc),status='replace')
-!            j=0; cont=0
-!         do i=-datos_esp%np,datos_esp%np 
-!             cont=cont+1
-
-!             x=dfloat(i)*sdi/dfloat(datos_esp%np)
-!             y=dfloat(j)*sdi/dfloat(datos_esp%np)
-
-!             ra=dsqrt(x**2+y**2)
-
-!             if (ra > sdi) cycle
-
-!             raiz=sqrt(1.0_dp-(k+1.0_dp)*c*c*ra*ra)
-!             z=(c*ra*ra/(1.0_dp+raiz)); zx=c*x/raiz; zy=c*y/raiz
-
-!             raiz_max = sqrt(1.0_dp-(k+1.0_dp)*c*c*sdi*sdi)
-!             z_max = (c*sdi*sdi)/(1.0_dp+raiz_max)
-
-!             deno=(datos_esp%gamma-z)*(1.0_dp-zx*zx-zy*zy)+2.0_dp*(zx*(x-datos_esp%alfa)+zy*(y-datos_esp%beta))
-!             numx0=(x-datos_esp%alfa)*(1.0_dp-zx*zx+zy*zy)-2.0_dp*zx*(zy*(y-datos_esp%beta)+(datos_esp%gamma-z))
-!             numy0=(y-datos_esp%beta)*(1.0_dp+zx*zx-zy*zy)-2.0_dp*zy*(zx*(x-datos_esp%alfa)+(datos_esp%gamma-z))
-
-!             tx=x+(datos_esp%z0-z)*numx0/deno; ty=y+(datos_esp%z0-z)*numy0/deno
-!             txron=x+(z_max-z)*numx0/deno; tyron=y+(z_max-z)*numy0/deno
-!             argx=(2.0_dp*pi*tx/delta); argy=(2.0_dp*pi*tx/delta)
-
-!             write(40,*) txron,(dcos(argx)+1)/2  
-!         enddo
-!         close(40)
-!     end subroutine fila_diam_ronchigrama_simulado_cos
-
-!     subroutine fila_diam_ronchigrama_simulado_bin(rc,k,NomArc)
-!         real(dp), intent(in) :: rc, k
-!         character(len=20), intent(in) :: NomArc
-!         real(dp) :: delta,sdi,c,x,y,ra,raiz,z,zx,zy,raiz_max,z_max
-!         real(dp) :: deno,numx0,numy0,tx,ty,txron,tyron,argx,argy
-!         real(dp), parameter :: pi=3.1415926535_dp !Buscar si estoy siendo redundante
-!         integer :: i,j
-    
-!         delta=2.54_dp/datos_esp%nlp; sdi=datos_esp%di/2.0_dp; c=1.0_dp/rc
-
-!         open(40,file=trim(NomArc),status='replace')
-!         do i=-datos_esp%np,datos_esp%np 
-!            j=0
-
-!             x=dfloat(i)*sdi/dfloat(datos_esp%np)
-!             y=dfloat(j)*sdi/dfloat(datos_esp%np)
-
-!             ra=dsqrt(x**2+y**2)
-
-!             if (ra > sdi) cycle
-
-!             raiz=sqrt(1.0_dp-(k+1.0_dp)*c*c*ra*ra)
-!             z=(c*ra*ra/(1.0_dp+raiz)); zx=c*x/raiz; zy=c*y/raiz
-
-!             raiz_max = sqrt(1.0_dp-(k+1.0_dp)*c*c*sdi*sdi)
-!             z_max = (c*sdi*sdi)/(1.0_dp+raiz_max)
-
-!             deno=(datos_esp%gamma-z)*(1.0_dp-zx*zx-zy*zy)+2.0_dp*(zx*(x-datos_esp%alfa)+zy*(y-datos_esp%beta))
-!             numx0=(x-datos_esp%alfa)*(1.0_dp-zx*zx+zy*zy)-2.0_dp*zx*(zy*(y-datos_esp%beta)+(datos_esp%gamma-z))
-!             numy0=(y-datos_esp%beta)*(1.0_dp+zx*zx-zy*zy)-2.0_dp*zy*(zx*(x-datos_esp%alfa)+(datos_esp%gamma-z))
-
-!             tx=x+(datos_esp%z0-z)*numx0/deno; ty=y+(datos_esp%z0-z)*numy0/deno
-!             txron=x+(z_max-z)*numx0/deno; tyron=y+(z_max-z)*numy0/deno
-!             argx=(2.0_dp*pi*tx/delta); argy=(2.0_dp*pi*tx/delta)
-
-!             write(40,*) txron,(dcos(argx)+1)/2   
-!         enddo
-!         close(40)
-!     end subroutine fila_diam_ronchigrama_simulado_bin
-! end module simulacion
 
 ! module tratam_dat_sintexp
 !     use utiles
@@ -1299,6 +1050,22 @@ end module utiles
 
 !         deallocate(foto)
 !     end subroutine matriz_espejo_efec_rect
+
+!     subroutine agregar_dat_exp()
+!         integer :: i, posicion
+!         real(8) :: coorinfl(cont_pin+2, 3), coor_x_max
+
+!         open(11, file=trim(carpeta)//'maximini.txt', status='old')
+!         read(11,*)
+!         do i = 1, cont_pin + 2
+!             read(11,*) posicion, coorinfl(i,2), coorinfl(i,3)
+!         end do
+!         close(11)
+!         coor_x_max = coorinfl((cont_pin/2) + 2, 2)
+!         open(unit=10, file=datos, status="unknown", position="append")
+!         write(10,*) m_dat, (coord_centrox - coor_x_max) * un_pixel
+!         close(10)
+!     end subroutine agregar_dat_exp 
     
 ! end module tratam_dat_sintexp
 
@@ -1387,9 +1154,8 @@ end module utiles
 ! module graficos
 !     use utiles
 !     implicit none
+    
 ! contains
-!     !Graficadores
-
 !     subroutine grafica_compar(rc,k)
 !         implicit none
 !         real(dp), intent(in) :: rc, k
@@ -1576,10 +1342,5 @@ end module utiles
 
 !         comando_sistema = 'gnuplot -p "' // trim(archivo_datosgnuplot) // '"'
 !         call system(trim(comando_sistema))
-!     endsubroutine png_cos    
+!     endsubroutine png_cos 
 ! end module graficos
-
-! ! FIN ARMADO =======================================================================================================================
-! ! ==================================================================================================================================
-! ! ==================================================================================================================================
-! ! ==================================================================================================================================
