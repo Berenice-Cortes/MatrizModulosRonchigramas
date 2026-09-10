@@ -373,6 +373,39 @@ contains
     end function func_param_azar
 
 end module utiles
+!Sin definir bien ruta de salida y ruta de entrada
+!Hacerlo un modulo
+
+module datos_compartidos
+    use utiles
+  implicit none
+  real(dp), allocatable :: arr_x(:), arr_y(:)
+
+contains
+
+  subroutine asegurar_dimension_arrx(n)
+    integer, intent(in) :: n
+    if (.not. allocated(arr_x)) then
+      allocate(arr_x(n))
+    else if (size(arr_X) /= n) then
+      ! Si ya existe pero con diferente tamaño, se redimensiona
+      deallocate(arr_x)
+      allocate(arr_x(n))
+    end if
+  end subroutine asegurar_dimension_arrx
+
+  subroutine asegurar_dimension_arry_y(n)
+    integer, intent(in) :: n
+    if (.not. allocated(arr_y)) then
+      allocate(arr_y(n))
+    else if (size(arr_X) /= n) then
+      ! Si ya existe pero con diferente tamaño, se redimensiona
+      deallocate(arr_y)
+      allocate(arr_y(n))
+    end if
+  end subroutine asegurar_dimension_arry_y
+
+end module datos_compartidos
 
 module inicios
     implicit none
@@ -430,48 +463,77 @@ contains
 end module inicios
 
 module calculos_sagita
-    use utiles
+    use utiles; use datos_compartidos
     implicit none
     real(dp) :: sdi, delta, ra, c, x, y, raiz,z,zx,zy,raiz_max,z_max,deno,numx0,numy0,tx,ty,tx_ron,ty_ron
+    character(len=20) :: tipo_array(2,5)
     character(len=3) :: tipo_rejilla
+    integer :: datos_ciclo_do(5,4)
 contains
-    subroutine puntos_txt(tipo)
-        implicit none
-        character(len=3), intent(in) :: tipo
-
-        call ctes_sim
-        call ciclodo(tipo)
-        
-    end subroutine puntos_txt
-
     subroutine ctes_sim()
         implicit none
         sdi=datos_esp%di/2.0_dp; delta=2.54_dp/datos_esp%np; c=1.0_dp/datos_esp%rc
     end subroutine ctes_sim
 
+    subroutine datos_para_ciclodo()
+        implicit none
+        character(len=20) :: tipo
+        integer :: tipo_num
+        integer :: i
+
+        write(*,*) 'Ellige uno: completo, franja_simetrico, franja_cualq, fila_cualq, diametro'
+        read(*,*) tipo
+
+        tipo_array(1,1) = 'completo'; tipo_array(1,2) = 'franja_simetrico'; tipo_array(1,3) = 'franja_cualq'
+        tipo_array(1,4) = 'fila_cualq'; tipo_array(1,5) = 'diametro'
+        tipo_array(2,1) = '1'; tipo_array(2,2) = '2'; tipo_array(2,3) = '3'; tipo_array(2,4) = '4'; tipo_array(2,5) = '5'
+
+        print*, tipo_array
+
+        do i = 1, 6
+            if (tipo_array(1,i)==tipo) then
+                read(tipo_array(2,i),*) tipo_num
+                exit
+            endif
+        end do
+
+        print*, 'Numero asociado:', tipo_num
+
+        datos_ciclo_do(1,1) = tipo_num; datos_ciclo_do(1,2) = 0; datos_ciclo_do(1,3) = 0; datos_ciclo_do(1,4) = 1;
+        datos_ciclo_do(2,1) = tipo_num; datos_ciclo_do(2,2) = 0; datos_ciclo_do(2,3) = 0; datos_ciclo_do(2,4) = 1;
+        datos_ciclo_do(3,1) = tipo_num; datos_ciclo_do(3,2) = 0; datos_ciclo_do(3,3) = 0; datos_ciclo_do(3,4) = 1;
+        datos_ciclo_do(4,1) = tipo_num; datos_ciclo_do(4,2) = 0; datos_ciclo_do(4,3) = 0; datos_ciclo_do(4,4) = 1;
+        datos_ciclo_do(5,1) = tipo_num; datos_ciclo_do(5,2) = 0; datos_ciclo_do(5,3) = 0; datos_ciclo_do(5,4) = 1;
+    end subroutine datos_para_ciclodo
+
     subroutine ciclodo(tipo)
         implicit none
-        character(len=3), intent(in) :: tipo
-        integer :: i,j
+        integer, intent(in) :: tipo
+        integer :: i,j,fila,fila1,fila2
 
         open(40,file="salida/ronchigrama_comp.txt",status='replace')
         do i=-datos_esp%np,datos_esp%np,1
-            do j=-datos_esp%np,datos_esp%np,1
-                x=(real(i,dp)*sdi)/real(datos_esp%np,dp); y=(real(j,dp)*sdi)/real(datos_esp%np,dp)
-                ra = dist(x,y)
-                if ( ra<=sdi) then
-                    call comun(datos_esp%k,c,ra,x,y,sdi,raiz,z,zx,zy,raiz_max,z_max,deno) !cuál es constante?
-                    numx0 = num(x,y,zx,zy,datos_esp%alfa,datos_esp%beta,z)
-                    numy0 = num(y,x,zy,zx,datos_esp%beta,datos_esp%alfa,z)
-                    tx = aberracion_t(x,datos_esp%z0,z,numx0,deno)
-
-                    tx_ron=aberracion_t(x,datos_esp%z0,z,numx0,deno)
-                    ty_ron=aberracion_t(x,z_max,z,numx0,deno)
-                    call rejilla(tipo,tx,tx_ron,ty_ron)
-                end if
-            end do
-        end do
-        close(40)
+            x=(real(i,dp)*sdi)/real(datos_esp%np,dp) 
+        if(tipo==1) then
+           do j=-datos_esp%np,datos_esp%np,1
+            y=(real(j,dp)*sdi)/real(datos_esp%np,dp)
+           enddo
+        else if (tipo==2) then
+           do j=-fila,fila,1
+            y=(real(j,dp)*sdi)/real(datos_esp%np,dp)
+           enddo
+        elseif (tipo==3) then
+           do j=fila1,fila2,1
+            y=(real(j,dp)*sdi)/real(datos_esp%np,dp)
+           enddo
+        elseif (tipo==4) then
+            j=fila
+            y=(real(j,dp)*sdi)/real(datos_esp%np,dp)
+        elseif (tipo==5) then
+            j=0
+            y=(real(j,dp)*sdi)/real(datos_esp%np,dp)
+        endif
+        enddo
     end subroutine ciclodo
 
     function dist(a,b) result(c)
@@ -547,6 +609,22 @@ contains
         argx=(2.0_dp*pi*aberr_tx/delta); argy=(2.0_dp*pi*aberr_ty/delta)
     end subroutine rejilla2
 end module calculos_sagita
+
+module simulador
+    implicit none
+    
+contains
+    subroutine leer_datos
+        implicit none
+        
+    end subroutine leer_datos
+
+    subroutine ctes_sim()
+        implicit none
+        sdi=datos_esp%di/2.0_dp; delta=2.54_dp/datos_esp%np; c=1.0_dp/datos_esp%rc
+    end subroutine ctes_sim
+    
+end module simulador
 
 ! module calculos_varios
 !     use utiles
