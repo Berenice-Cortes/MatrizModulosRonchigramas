@@ -463,78 +463,10 @@ contains
 end module inicios
 
 module calculos_sagita
-    use utiles; use datos_compartidos
+    use utiles
     implicit none
     real(dp) :: sdi, delta, ra, c, x, y, raiz,z,zx,zy,raiz_max,z_max,deno,numx0,numy0,tx,ty,tx_ron,ty_ron
-    character(len=20) :: tipo_array(2,5)
-    character(len=3) :: tipo_rejilla
-    integer :: datos_ciclo_do(5,4)
 contains
-    subroutine ctes_sim()
-        implicit none
-        sdi=datos_esp%di/2.0_dp; delta=2.54_dp/datos_esp%np; c=1.0_dp/datos_esp%rc
-    end subroutine ctes_sim
-
-    subroutine datos_para_ciclodo()
-        implicit none
-        character(len=20) :: tipo
-        integer :: tipo_num
-        integer :: i
-
-        write(*,*) 'Ellige uno: completo, franja_simetrico, franja_cualq, fila_cualq, diametro'
-        read(*,*) tipo
-
-        tipo_array(1,1) = 'completo'; tipo_array(1,2) = 'franja_simetrico'; tipo_array(1,3) = 'franja_cualq'
-        tipo_array(1,4) = 'fila_cualq'; tipo_array(1,5) = 'diametro'
-        tipo_array(2,1) = '1'; tipo_array(2,2) = '2'; tipo_array(2,3) = '3'; tipo_array(2,4) = '4'; tipo_array(2,5) = '5'
-
-        print*, tipo_array
-
-        do i = 1, 6
-            if (tipo_array(1,i)==tipo) then
-                read(tipo_array(2,i),*) tipo_num
-                exit
-            endif
-        end do
-
-        print*, 'Numero asociado:', tipo_num
-
-        datos_ciclo_do(1,1) = tipo_num; datos_ciclo_do(1,2) = 0; datos_ciclo_do(1,3) = 0; datos_ciclo_do(1,4) = 1;
-        datos_ciclo_do(2,1) = tipo_num; datos_ciclo_do(2,2) = 0; datos_ciclo_do(2,3) = 0; datos_ciclo_do(2,4) = 1;
-        datos_ciclo_do(3,1) = tipo_num; datos_ciclo_do(3,2) = 0; datos_ciclo_do(3,3) = 0; datos_ciclo_do(3,4) = 1;
-        datos_ciclo_do(4,1) = tipo_num; datos_ciclo_do(4,2) = 0; datos_ciclo_do(4,3) = 0; datos_ciclo_do(4,4) = 1;
-        datos_ciclo_do(5,1) = tipo_num; datos_ciclo_do(5,2) = 0; datos_ciclo_do(5,3) = 0; datos_ciclo_do(5,4) = 1;
-    end subroutine datos_para_ciclodo
-
-    subroutine ciclodo(tipo)
-        implicit none
-        integer, intent(in) :: tipo
-        integer :: i,j,fila,fila1,fila2
-
-        open(40,file="salida/ronchigrama_comp.txt",status='replace')
-        do i=-datos_esp%np,datos_esp%np,1
-            x=(real(i,dp)*sdi)/real(datos_esp%np,dp) 
-        if(tipo==1) then
-           do j=-datos_esp%np,datos_esp%np,1
-            y=(real(j,dp)*sdi)/real(datos_esp%np,dp)
-           enddo
-        else if (tipo==2) then
-           do j=-fila,fila,1
-            y=(real(j,dp)*sdi)/real(datos_esp%np,dp)
-           enddo
-        elseif (tipo==3) then
-           do j=fila1,fila2,1
-            y=(real(j,dp)*sdi)/real(datos_esp%np,dp)
-           enddo
-        elseif (tipo==4) then
-            j=fila
-            y=(real(j,dp)*sdi)/real(datos_esp%np,dp)
-        elseif (tipo==5) then
-            j=0
-            y=(real(j,dp)*sdi)/real(datos_esp%np,dp)
-        endif
-        enddo
-    end subroutine ciclodo
 
     function dist(a,b) result(c)
         implicit none
@@ -611,18 +543,62 @@ contains
 end module calculos_sagita
 
 module simulador
+    use utiles; use datos_compartidos
+    use calculos_sagita
     implicit none
+    character(len=20) :: tipo_array(2,5)
+    character(len=3) :: tipo_rejilla
+    integer :: datos_ciclo_do(5,4)
     
 contains
     subroutine leer_datos
         implicit none
-        
+        datos_esp%di = 14.0_dp; datos_esp%nlp = 50.0_dp; datos_esp%z0= 99.5_dp
+        datos_esp%alfa = 0.0_dp; datos_esp%beta = 0.0_dp; datos_esp%gamma= 99.5_dp
+        datos_esp%phi=0.0_dp; datos_esp%np=50      
     end subroutine leer_datos
 
     subroutine ctes_sim()
         implicit none
-        sdi=datos_esp%di/2.0_dp; delta=2.54_dp/datos_esp%np; c=1.0_dp/datos_esp%rc
+        ! sdi=datos_esp%di/2.0_dp; delta=2.54_dp/datos_esp%np; c=1.0_dp/datos_esp%rc
     end subroutine ctes_sim
+
+    !datos ciclo do
+    subroutine datos_para_ciclodo()
+        implicit none
+        character(len=20) :: tipo
+        integer :: tipo_num
+        integer :: i
+
+        write(*,*) 'Ellige uno: completo, franja_simetrico, franja_cualq, fila_cualq, diametro'
+        read(*,*) tipo
+
+        tipo_array(1,1) = 'completo'; tipo_array(1,2) = 'franja_simetrico'; tipo_array(1,3) = 'franja_cualq'
+        tipo_array(1,4) = 'fila_cualq'; tipo_array(1,5) = 'diametro'
+        tipo_array(2,1) = '1'; tipo_array(2,2) = '2'; tipo_array(2,3) = '3'; tipo_array(2,4) = '4'; tipo_array(2,5) = '5'
+
+        print*, tipo_array
+
+        do i = 1, 6
+            if (tipo_array(1,i)==tipo) then
+                read(tipo_array(2,i),*) tipo_num
+                exit
+            endif
+        end do
+
+        print*, 'Numero asociado:', tipo_num
+
+        datos_ciclo_do(1,1) = tipo_num; datos_ciclo_do(1,2) = 0; datos_ciclo_do(1,3) = 0; datos_ciclo_do(1,4) = 1;
+        datos_ciclo_do(2,1) = tipo_num; datos_ciclo_do(2,2) = 0; datos_ciclo_do(2,3) = 0; datos_ciclo_do(2,4) = 1;
+        datos_ciclo_do(3,1) = tipo_num; datos_ciclo_do(3,2) = 0; datos_ciclo_do(3,3) = 0; datos_ciclo_do(3,4) = 1;
+        datos_ciclo_do(4,1) = tipo_num; datos_ciclo_do(4,2) = 0; datos_ciclo_do(4,3) = 0; datos_ciclo_do(4,4) = 1;
+        datos_ciclo_do(5,1) = tipo_num; datos_ciclo_do(5,2) = 0; datos_ciclo_do(5,3) = 0; datos_ciclo_do(5,4) = 1;
+    end subroutine datos_para_ciclodo
+    !comun calculos
+
+    ! calculos para bironchi o ronchi
+
+    ! rejilla binario o coseno
     
 end module simulador
 
