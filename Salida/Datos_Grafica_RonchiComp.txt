@@ -1,0 +1,8 @@
+ set term qt
+ set terminal qt font "Monaco,12"
+ set xlabel "eje x (cm)"
+ set ylabel "eje y (cm)"
+ set size ratio 1
+ set title "z_0=99.50000000, k=-1.80000000 y rc=100.00000000"
+ set grid
+ plot "salida/tx_birbin_completo.txt" ls 0 lc 16 notitle
