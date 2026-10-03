@@ -213,7 +213,7 @@ contains
         print('(A,X,A)'), 'Archivo de datos:', trim(ruta%arch_param)
     end subroutine asignar_rutas
 
-! ==================================================================================================================================
+ ! ==================================================================================================================================
     subroutine crear_fichero_datos_prueba()
         implicit none
         open(30,file=trim(ruta%url_carpeta_caso)//'/prueba_'//trim(ruta%nombre_imagen)//'.txt',status='replace',action='write')
@@ -346,7 +346,7 @@ contains
             ! write(30,'(A,X,F15.12)') A, datos_esp%phi
         close(30)
     end subroutine leer_archivo
-! ==================================================================================================================================
+ ! ==================================================================================================================================
 
     function func_param_azar(cantidad_decim, min_val, max_val) result(paramet)
         implicit none
@@ -372,59 +372,7 @@ contains
     end function func_param_azar
 
 end module utiles
-!Sin definir bien ruta de salida y ruta de entrada
-!Hacerlo un modulo
-
-module datos_compartidos
-    use utiles
-  implicit none
-  real(dp), allocatable :: arr_x(:), arr_y(:),arr_xy(:,:)
-  integer :: tam_pupila
-
-contains
-
-  subroutine asegurar_dimension_arrx()
-    implicit none
-    integer :: n
-
-    n=2*datos_esp%np+1
-
-    if (.not. allocated(arr_x)) then
-      allocate(arr_x(n))
-    else if (size(arr_x) /= n) then
-      ! Si ya existe pero con diferente tamaño, se redimensiona
-      deallocate(arr_x)
-      allocate(arr_x(n))
-    end if
-  end subroutine asegurar_dimension_arrx
-
-  subroutine asegurar_dimension_arry_y(n)
-    implicit none
-    integer, intent(in) :: n
-
-    if (.not. allocated(arr_y)) then
-      allocate(arr_y(n))
-    else if (size(arr_y) /= n) then
-      ! Si ya existe pero con diferente tamaño, se redimensiona
-      deallocate(arr_y)
-      allocate(arr_y(n))
-    end if
-  end subroutine asegurar_dimension_arry_y
-
-  subroutine asegurar_dimension_arry_xy(n)
-    implicit none
-    integer, intent(in) :: n
-
-    if (.not. allocated(arr_xy)) then
-      allocate(arr_xy(2,n))
-    else if (size(arr_xy) /= 2*n) then
-      ! Si ya existe pero con diferente tamaño, se redimensiona
-      deallocate(arr_xy)
-      allocate(arr_xy(2,n))
-    end if
-  end subroutine asegurar_dimension_arry_xy
-
-end module datos_compartidos
+!Sin definir bien ruta de salida y ruta de entrada. Hacerlo un modulo
 
 module inicios
     implicit none
@@ -481,1124 +429,378 @@ contains
     
 end module inicios
 
-module calculos_sagita
-    use utiles
-    implicit none
-    real(dp) :: sdi, delta, ra, c, x, y, raiz,z,zx,zy,raiz_max,z_max,deno,numx0,numy0,tx,ty,tx_ron,ty_ron
+! module datos_compartidos
+!     use utiles
+!   implicit none
+!   real(dp), allocatable :: arr_x(:), arr_y(:),arr_xy(:,:)
+!   integer :: tam_pupila
 
-contains
+! contains
 
-    function dist(a,b) result(c)
-        implicit none
-        real(dp), intent(in) :: a,b
-        real(dp) :: c
-        c=dsqrt(a**2+b**2)
-    end function dist
+!   subroutine asegurar_dimension_arrx()
+!     implicit none
+!     integer :: n
 
-    subroutine comun(k,c,ra,x,y,sdi)
-        implicit none
-        real(dp), intent(in) :: k,c,ra,x,y,sdi
-        ! real(dp), intent(out) :: raiz,z,zx,zy,raiz_max,z_max,deno
-        
-        raiz=dsqrt(1.0_dp-(k+1.0_dp)*c**2*ra**2)
-        z=(c*ra**2)/(1.0_dp+raiz)
-        zx=c*x/(raiz)
-        zy=c*y/(raiz)
+!     n=2*datos_esp%np+1
 
-        raiz_max=dsqrt(1.0_dp-(k+1.0_dp)*c**2*sdi**2)
-        z_max=(c*sdi**2)/(1.0_dp+raiz_max)
-        deno=(datos_esp%gamma-z)*(1.0_dp-zx*zx-zy*zy)+2.0_dp*(zx*(x-datos_esp%alfa)+zy*(y-datos_esp%beta))
-    end subroutine comun
-    
-    function num(vi,vj,pvi,pvj,vli,vlj,vk) result(numerador_i)
-        implicit none
-        real(dp), intent(in):: vi,vj,pvi,pvj,vli,vlj,vk
-        real(dp) :: numerador_i
-        numerador_i = (vi-vli)*(1.0_dp-pvi*pvi+pvj*pvj)-2.0_dp*pvi*(pvj*(vj-vlj)+(datos_esp%gamma-vk))
-    end function num
+!     if (.not. allocated(arr_x)) then
+!       allocate(arr_x(n))
+!     else if (size(arr_x) /= n) then
+!       ! Si ya existe pero con diferente tamaño, se redimensiona
+!       deallocate(arr_x)
+!       allocate(arr_x(n))
+!     end if
+!   end subroutine asegurar_dimension_arrx
 
-    function aberracion_t(vi,vkp,vk,nume,denom) result(abtr)
-        real(dp), intent(in) :: vi,vk,nume,denom,vkp
-        real(dp) :: abtr
+!   subroutine asegurar_dimension_arry_y(n)
+!     implicit none
+!     integer, intent(in) :: n
 
-        abtr = vi+(vkp-vk)*(nume/denom)
-    end function aberracion_t
+!     if (.not. allocated(arr_y)) then
+!       allocate(arr_y(n))
+!     else if (size(arr_y) /= n) then
+!       ! Si ya existe pero con diferente tamaño, se redimensiona
+!       deallocate(arr_y)
+!       allocate(arr_y(n))
+!     end if
+!   end subroutine asegurar_dimension_arry_y
 
-    subroutine rejilla(tipo,aberr_tx,tx_esp,ty_esp)
-        implicit none
-        character(len=3), intent(in) :: tipo
-        real(dp), intent(in) :: aberr_tx,tx_esp,ty_esp
-        real(dp)::argx,x_visib,y_visib
+!   subroutine asegurar_dimension_arry_xy(n)
+!     implicit none
+!     integer, intent(in) :: n
 
-        argx=(2.0_dp*pi*aberr_tx/delta)
+!     if (.not. allocated(arr_xy)) then
+!       allocate(arr_xy(2,n))
+!     else if (size(arr_xy) /= 2*n) then
+!       ! Si ya existe pero con diferente tamaño, se redimensiona
+!       deallocate(arr_xy)
+!       allocate(arr_xy(2,n))
+!     end if
+!   end subroutine asegurar_dimension_arry_xy
 
-        if(tipo=='bin') then
-            write(40,*) tx_esp,ty_esp,(dcos(argx)+1)/2
-        else if(tipo=='cos') then
-            if(dcos(argx)>0.0_dp) then
-                x_visib=tx_esp; y_visib=ty_esp
-                write(40,*) x_visib,y_visib
-            endif
-        endif
+! end module datos_compartidos
 
-    end subroutine rejilla
-
-    subroutine rejilla2(tipo,aberr_tx,aberr_ty)
-        implicit none
-        character(len=3), intent(in) :: tipo
-        real(dp), intent(in) :: aberr_tx,aberr_ty
-        real(dp)::argx,argy
-
-        if(tipo=='bin2') then
-        ! write(40,*) txron,tyron,(dcos(argx)+1)/2
-        ! if(dcos(argx)>0.0_dp) then
-        !         write(40,*) txron,tyron
-        !     endif
-        else if(tipo=='cos2') then
-
-        endif
-
-        argx=(2.0_dp*pi*aberr_tx/delta); argy=(2.0_dp*pi*aberr_ty/delta)
-    end subroutine rejilla2
-end module calculos_sagita
-
-module simulador
-    use utiles; use datos_compartidos
-    use calculos_sagita
-    implicit none
-    character(len=20) :: tipo_if1(2,5)
-    character(len=20) :: tipo_if2(2,8)
-    character(len=3) :: tipo_rejilla
-    integer :: datos_ciclo_do(5,4), tipo_num
-    
-contains
-    subroutine leer_datos
-        implicit none
-        datos_esp%di = 14.0_dp; datos_esp%nlp = 50.0_dp; datos_esp%z0= 99.5_dp
-        datos_esp%alfa = 0.0_dp; datos_esp%beta = 0.0_dp; datos_esp%gamma= 99.5_dp
-        datos_esp%phi=0.0_dp; datos_esp%np=100
-    end subroutine leer_datos
-
-    subroutine ctes_sim()
-        implicit none
-        sdi=datos_esp%di/2.0_dp; delta=2.54_dp/datos_esp%nlp; c=1.0_dp/datos_esp%rc
-    end subroutine ctes_sim
-
-    !datos ciclo do
-    subroutine datos_para_ciclodo_if1()
-        implicit none
-        character(len=20) :: tipo
-        integer :: i,tam, tam1, tam2, fila
-
-        write(*,*) 'Ellige uno: completo, franja_simetrico, franja_cualq, fila_cualq, diametro'
-        read(*,*) tipo
-
-        tipo_if1(1,1) = 'completo'; tipo_if1(1,2) = 'franja_simetrico'; tipo_if1(1,3) = 'franja_cualq'
-        tipo_if1(1,4) = 'fila_cualq'; tipo_if1(1,5) = 'diametro'
-        tipo_if1(2,1) = '1'; tipo_if1(2,2) = '2'; tipo_if1(2,3) = '3'; tipo_if1(2,4) = '4'; tipo_if1(2,5) = '5'
-
-        print*, tipo_if1
-
-        do i = 1, 6
-            if (tipo_if1(2,i)==tipo) then
-                ! read(tipo_if1(2,i),*) tipo_num
-                print*, 'Numero i', i
-                tipo_num = i
-                exit
-            endif
-
-        end do
-
-        print*, 'Numero asociado:', tipo_num
-        tam=20
-        tam1=-45; tam2=15
-        fila=3
-
-        datos_ciclo_do(1,1) = 2*datos_esp%np+1; datos_ciclo_do(1,2) = -datos_esp%np; 
-        datos_ciclo_do(1,3) = datos_esp%np; datos_ciclo_do(1,4) = 1;
-        datos_ciclo_do(2,1) = 2*tam+1; datos_ciclo_do(2,2) = -tam; datos_ciclo_do(2,3) = tam; datos_ciclo_do(2,4) = 1;
-        datos_ciclo_do(3,1) = abs(tam1)+abs(tam2); datos_ciclo_do(3,2) = tam1; datos_ciclo_do(3,3) = tam2; datos_ciclo_do(3,4) = 1;
-        datos_ciclo_do(4,1) = 1; datos_ciclo_do(4,2) = fila!; datos_ciclo_do(4,3) = 0; datos_ciclo_do(4,4) = 1;
-        datos_ciclo_do(5,1) = 1; datos_ciclo_do(5,2) = 0!; datos_ciclo_do(5,3) = 0; datos_ciclo_do(5,4) = 1;
-    end subroutine datos_para_ciclodo_if1
-
-    subroutine datos_para_ciclodo_if2()
-        implicit none
-        character(len=7) :: tipo
-        integer :: i,tam, tam1, tam2, fila
-
-        write(*,*) 'Ellige uno: birbin, bircos, ronbinx,roncosx,ronbiny,roncosy'
-        read(*,*) tipo
-
-        tipo_if2(1,1) = 'birbin'; tipo_if2(1,2) = 'bircos'; tipo_if2(1,3) = 'ronbinx'
-        tipo_if2(1,4) = 'roncosx'; tipo_if2(1,5) = 'ronbiny'; tipo_if2(1,6) = 'roncosy'
-        tipo_if2(1,7) = 'perbinx'; tipo_if2(1,8) = 'percosy'
-        tipo_if2(2,1) = '1'; tipo_if2(2,2) = '2'; tipo_if2(2,3) = '3'; tipo_if2(2,4) = '4'; 
-        tipo_if2(2,5) = '5'; tipo_if2(2,6) = '6'; tipo_if2(2,7) = '7'; tipo_if2(2,8) = '8'
-
-        print*, tipo_if2
-
-        do i = 1, 8
-            if (tipo_if2(2,i)==tipo) then
-                ! read(tipo_if2(2,i),*) tipo_num
-                print*, 'Numero i', i
-                tipo_num = i
-                exit
-            endif
-
-        end do
-
-        print*, 'Numero asociado:', tipo_num
-        tam=20
-        tam1=-3; tam2=5
-        fila=3
-        
-    end subroutine datos_para_ciclodo_if2
-
-    subroutine ciclo_do()
-        implicit none
-        integer :: i,j,cont
-        ! real(dp) :: ra
-
-        cont=0
-        do i = -datos_esp%np, datos_esp%np
-            cont=cont+1
-            arr_x(cont) = real(i,dp)*sdi/real(datos_esp%np, dp)
-        end do
-
-        print*, 'tipo_num', tipo_num
-
-        print*, 'Datos ciclos do:', datos_ciclo_do(tipo_num,2), datos_ciclo_do(tipo_num,3)
-
-
-        if (tipo_num == 1.or.tipo_num == 2.or.tipo_num == 3) then !completo
-            cont=0
-            do j = datos_ciclo_do(tipo_num,2), datos_ciclo_do(tipo_num,3),datos_ciclo_do(tipo_num,4)
-            cont=cont+1
-            arr_y(cont) = real(j,dp)*sdi/real(datos_esp%np, dp)
-            end do
-        else if (tipo_num == 4.or.tipo_num==5) then !fila cualqu
-            j=datos_ciclo_do(tipo_num,2)
-            arr_y(1)=real(j,dp)
-        endif
-
-        tam_pupila=0
-
-        ! write(10,*) "size(arr_x), size(arr_y)", size(arr_x), size(arr_y)
-
-        do i = 1, size(arr_x)
-        do j = 1, size(arr_y)
-            if(dist(arr_x(i),arr_y(j))<=sdi) then 
-                tam_pupila = tam_pupila+1
-            endif
-        enddo
-        enddo
-
-        print*, 'tamaño pupila', tam_pupila
-
-    end subroutine ciclo_do
-
-    !filtrar pupila, nuevo tamaño
-    subroutine arreglo_pupila()
-        implicit none
-        ! type1, intent(in) :: arg1
-        ! type2, intent(out) ::  arg2
-        integer :: i,j, cont
-
-        cont=0
-
-        do i = 1, size(arr_x)
-        do j = 1, size(arr_y)
-            if(dist(arr_x(i),arr_y(j))<=sdi) then
-                cont=cont+1
-                arr_xy(1,cont) = arr_x(i)
-                arr_xy(2,cont) = arr_y(j)
-            endif
-        enddo
-        enddo
-        
-    end subroutine arreglo_pupila
-    
-    !comun calculos
-
-    subroutine calculos_comunes(pupilax,pupilay)
-        real(dp), intent(in) :: pupilax,pupilay
-        real(dp) :: txron,tyron,argx,argy
-        integer, parameter :: arch = 40
-
-        x=pupilax ; y=pupilay;
-
-        numx0= num(x,y,zx,zy,datos_esp%alfa,datos_esp%beta,z)
-        numy0= num(y,x,zy,zx,datos_esp%beta,datos_esp%alfa,z)
-
-        if ( tipo_num==1.or.tipo_num==2 ) then !if ( "bironchigrama" == 'bironchigrama' ) then
-            numy0= num(y,x,zy,zx,datos_esp%beta,datos_esp%alfa,z)
-            tx = aberracion_t(x,datos_esp%z0,z,numx0,deno)
-            ty = aberracion_t(y,datos_esp%z0,z,numy0,deno)
-
-            argx = (2.0_dp*pi*tx)/delta
-            argy = (2.0_dp*pi*ty)/delta
-
-            txron = aberracion_t(x,z_max,z,numx0,deno)
-            tyron = aberracion_t(y,z_max,z,numy0,deno)
-            
-            if ( tipo_num==1  ) then
-
-                if(cos(argx)>=0.and.cos(argy)>=0) then
-                    write(arch,*) txron, tyron
-                endif
-
-            else if ( tipo_num==2  ) then
-                write(arch,*) txron,tyron,(cos(argx)+1)/4 + (cos(argy)+1)/4
-            end if  
-        
-        else if (tipo_num==3.or.tipo_num==4 ) then!else if ("ronchigrama vertical x" == 'ronchigrama') then
-            numy0= num(y,x,zy,zx,datos_esp%beta,datos_esp%alfa,z)
-            tx = aberracion_t(x,datos_esp%z0,z,numx0,deno)
-            argx = (2.0_dp*pi*tx)/delta
-
-            if ( tipo_num==3  ) then
-                if(cos(argx)>=0.0_dp) then
-                    txron = aberracion_t(x,z_max,z,numx0,deno)
-                    tyron = aberracion_t(y,z_max,z,numy0,deno)
-                    write(arch,*) txron, tyron
-                endif
-            else if ( tipo_num==4  ) then
-                txron = aberracion_t(x,z_max,z,numx0,deno)
-                tyron = aberracion_t(y,z_max,z,numy0,deno)
-                write(arch,*) txron, tyron, (cos(argx)+1)/2
-            end if  
-        else if (tipo_num==5.or.tipo_num==6) then!else if ("ronchigrama horizontal y" == 'ronchigrama') then
-            numy0= num(y,x,zy,zx,datos_esp%beta,datos_esp%alfa,z)
-            ty = aberracion_t(y,datos_esp%z0,z,numy0,deno)
-            argy = (2.0_dp*pi*ty)/delta
-
-            if ( tipo_num==5  ) then
-
-                if(cos(argy)>=0.0_dp) then
-                    txron = aberracion_t(x,z_max,z,numx0,deno)
-                    tyron = aberracion_t(y,z_max,z,numy0,deno)
-                    write(arch,*) txron, tyron
-                endif
-
-            else if ( tipo_num==6  ) then
-                txron = aberracion_t(x,z_max,z,numx0,deno)
-                tyron = aberracion_t(y,z_max,z,numy0,deno)
-                write(arch,*) txron, tyron, (cos(argy)+1)/2
-            end if  
-        else if (tipo_num==7.or.tipo_num==8) then!else if perfil de fila
-            
-            tx = aberracion_t(x,datos_esp%z0,z,numx0,deno)
-            argx = (2.0_dp*pi*tx)/delta
-
-            if ( tipo_num==7  ) then
-                txron = aberracion_t(x,z_max,z,numx0,deno)
-                if(cos(argx)>=0.0_dp) then                    
-                    write(arch,*) txron, 0.0_dp
-                else
-                    write(arch,*) txron, 1.0_dp
-                endif
-            else if ( tipo_num==8  ) then
-                txron = aberracion_t(x,z_max,z,numx0,deno)
-                write(arch,*) txron, (cos(argx)+1)/2
-            end if   
-        end if 
-    end subroutine calculos_comunes
-end module simulador
-
-! module calculos_varios
+! module calculos_sagita
 !     use utiles
 !     implicit none
+!     real(dp) :: sdi, delta, ra, c, x, y, raiz,z,zx,zy,raiz_max,z_max,deno,numx0,numy0,tx,ty,tx_ron,ty_ron
+
 ! contains
-!     subroutine normalizar()
-!         integer :: i, j, a, b
-!         real(8), allocatable :: pos_pix(:), irrad(:), dummy(:)
-!         real(8) :: punt_inf(cont_pin+2, 4)
-!         allocate(pos_pix(num_dat), irrad(num_dat), dummy(num_dat))
-!         open(10, file=trim(carpeta)//'gaussian_filtered.txt', status='old')
-!         do i = 1, num_dat
-!             read(10,*) pos_pix(i), dummy(i), irrad(i)
-!         end do
-!         close(10)
-!         open(38, file=trim(carpeta)//'maximini.txt', status='old')
-!         read(38,*)
-!         do i = 1, cont_pin + 2
-!             read(38,*) punt_inf(i,1), punt_inf(i,2), punt_inf(i,3)
-!         end do
-!         close(38)
-!         do i = 1, cont_pin + 2, 2
-!             punt_inf(i,4) = punt_inf(i,3)
-!         end do
-!         do i = 2, cont_pin + 2, 2
-!             punt_inf(i,4) = punt_inf(i+1,3)
-!         end do
-!         write(*,'(a,i2,a)') 'rango de grafica (1,', cont_pin+2, ')'
-!         read(*,*) a, b
-!         m_dat = 0
-!         open(27, file=trim(carpeta)//'normalizado_cort.txt', status='replace')
-!         do i = 1, num_dat
-!             do j = a, b - 1
-!                 if (i >= int(punt_inf(j,1)) .and. i < int(punt_inf(j+1,1))) then
-!                     write(27,*) pos_pix(i), (irrad(i)-punt_inf(j,4))/abs(punt_inf(j+1,3)-punt_inf(j,3))
-!                     m_dat = m_dat + 1
-!                 end if
-!             end do
-!         end do
-!         i = int(punt_inf(b,1))
-!         write(27,*) pos_pix(i), (irrad(i)-punt_inf(b-1,4))/abs(punt_inf(b,3)-punt_inf(b-1,3))
-!         m_dat = m_dat + 1
-!         close(27)
-!         deallocate(pos_pix, irrad, dummy)
-!     end subroutine normalizar
 
-!     subroutine reescalar_coord()
-!         integer :: i
-!         real(8), allocatable :: x(:), y(:)
-!         allocate(x(m_dat), y(m_dat))
-!         open(10, file=trim(carpeta)//'normalizado_cort.txt', status='old')
-!         do i = 1, m_dat
-!             read(10,*) x(i), y(i)
-!         end do
-!         close(10)
-!         open(10, file=trim(carpeta)//'normalizado_cort_cm.txt', status='replace')
-!         do i = 1, m_dat
-!             write(10,*) (x(i) - coord_centrox) * un_pixel, y(i)
-!         end do
-!         close(10)
-!         deallocate(x, y)
-!     end subroutine reescalar_coord
-
-!     subroutine reordenar_trenza(arreglo)
+!     function dist(a,b) result(c)
 !         implicit none
-!         real(dp), intent(inout) :: arreglo(:,:)
-!         real(dp), allocatable :: nuevo(:,:)
-!         integer :: n, centro, i, desplazamiento, signo
+!         real(dp), intent(in) :: a,b
+!         real(dp) :: c
+!         c=dsqrt(a**2+b**2)
+!     end function dist
 
-!         n = size(arreglo)/2
-!         centro = (n + 1)/2
-
-!         allocate(nuevo(n,2))
-
-!         ! 1. La primera posición del nuevo es el centro del arreglo
-!         nuevo(1,1) = arreglo(centro,1)
-!         nuevo(1,2) = arreglo(centro,2)
-
-!         ! 2. Llenamos el resto alternando derecha e izquierda
-!         signo = 1            ! Empieza hacia la derecha (+1)
-!         desplazamiento = 1    ! Distancia al centro
-
-!         do i = 2, n
-!             ! Calculamos el índice del arreglo que queremos tomar
-!             ! Si i es par, vamos a la derecha. Si es impar, a la izquierda.
-!             if (mod(i, 2) == 0) then
-!                 nuevo(i,1) = arreglo(centro + desplazamiento,1)
-!                 nuevo(i,2) = arreglo(centro + desplazamiento,2)
-!             else
-!                 nuevo(i,1) = arreglo(centro - desplazamiento,1)
-!                 nuevo(i,2) = arreglo(centro - desplazamiento,2)
-!                 desplazamiento = desplazamiento + 1 ! Aumentamos la distancia tras un par Izq/Der
-!             end if
-!         end do
-
-!         !  open(10,file="ver_trenza_mod.txt",status="replace",action="write")
-!         !  do i = 1, 2*datos_esp%np+1
-!         !     write(10,'(F20.16,F20.16)') nuevo(i,1), nuevo(i,2)
-!         !  end do
-!         ! close(10)
-
-!         arreglo=nuevo
-!         deallocate(nuevo)
-!     end subroutine reordenar_trenza
-! end module calculos_varios
-
-! module calculos_para_optimizacion
-!     use utiles
-!     implicit none
-! contains
-!     subroutine dif_cuadrados(arreglo_base,arreglo_iterado,sumatoria)
+!     subroutine comun(k,c,ra,x,y,sdi)
 !         implicit none
-!         real(dp), intent(in) :: arreglo_base(:,:), arreglo_iterado(:,:)
-!         real(dp), intent(out) ::  sumatoria
-!         real(dp) :: y1,y2
-!         integer :: i
+!         real(dp), intent(in) :: k,c,ra,x,y,sdi
+!         ! real(dp), intent(out) :: raiz,z,zx,zy,raiz_max,z_max,deno
+        
+!         raiz=dsqrt(1.0_dp-(k+1.0_dp)*c**2*ra**2)
+!         z=(c*ra**2)/(1.0_dp+raiz)
+!         zx=c*x/(raiz)
+!         zy=c*y/(raiz)
 
-!         sumatoria=0.0_dp
-!         !open(40,file="Sim1.txt",status='old',action='read')
-!         !open(41,file="Sim2.txt",status='old',action='read')
-!         do i = 1, 2*datos_esp%np+1
-!             y1= arreglo_base(i,2); y2 = arreglo_iterado(i,2)
-!             sumatoria = sumatoria + (y2-y1)**2
-!         end do
-!         !close(40)
-!         !close(41)
-!     end subroutine dif_cuadrados
+!         raiz_max=dsqrt(1.0_dp-(k+1.0_dp)*c**2*sdi**2)
+!         z_max=(c*sdi**2)/(1.0_dp+raiz_max)
+!         deno=(datos_esp%gamma-z)*(1.0_dp-zx*zx-zy*zy)+2.0_dp*(zx*(x-datos_esp%alfa)+zy*(y-datos_esp%beta))
+!     end subroutine comun
     
-!     subroutine arreglo_minman()
+!     function num(vi,vj,pvi,pvj,vli,vlj,vk) result(numerador_i)
 !         implicit none
-!         real(8),allocatable :: minman(:,:)
-!         integer :: i, num_min, num_max, j
-!         real(8), allocatable :: pos_pix(:), irrad(:), dummy(:)
-!         logical, allocatable :: es_max(:), es_min(:)
+!         real(dp), intent(in):: vi,vj,pvi,pvj,vli,vlj,vk
+!         real(dp) :: numerador_i
+!         numerador_i = (vi-vli)*(1.0_dp-pvi*pvi+pvj*pvj)-2.0_dp*pvi*(pvj*(vj-vlj)+(datos_esp%gamma-vk))
+!     end function num
 
-!         allocate(pos_pix(num_dat), irrad(num_dat), dummy(num_dat), es_max(num_dat), es_min(num_dat))
+!     function aberracion_t(vi,vkp,vk,nume,denom) result(abtr)
+!         real(dp), intent(in) :: vi,vk,nume,denom,vkp
+!         real(dp) :: abtr
 
-!          open(10, file=trim(carpeta)//'/gaussian_filtered.txt', status='old')
-!           do i = 1, num_dat
-!             read(10,*) pos_pix(i), dummy(i), irrad(i)
-!           end do
-!          close(10)
+!         abtr = vi+(vkp-vk)*(nume/denom)
+!     end function aberracion_t
 
-!          es_min = .false.; es_max = .false.; num_min = 0; num_max = 0
-
-!          do i = 2, num_dat - 1
-!             if (irrad(i) < irrad(i-1) .and. irrad(i) < irrad(i+1)) then
-!                 es_min(i) = .true.; num_min = num_min + 1
-!             end if
-!             if (irrad(i) > irrad(i-1) .and. irrad(i) > irrad(i+1)) then
-!                 es_max(i) = .true.; num_max = num_max + 1
-!             end if
-!          end do
-
-!          cont_pin = num_min + num_max; j=0
-
-!          allocate(minman(cont_pin,3))
-
-!          do i = 2, num_dat - 1
-!             if (es_min(i) .or. es_max(i)) then ; j=j+1
-!                 minman(j,1)=i; 
-!                 minman(j,2)=pos_pix(i); 
-!                 minman(j,3)=irrad(i); 
-!             endif
-!          end do
-
-!          print'(A)', "Posición en lista"
-!          print*, int(minman(:,1))
-!          print'(A)', "Posición pixel en x"
-!          print*, int(minman(:,2))
-!          print'(A)', "Irradiancia de pixel"
-!          print*, minman(:,3)
-        
-!         deallocate(pos_pix, irrad, dummy, es_max, es_min,minman)
-!     end subroutine arreglo_minman
-
-!     subroutine puntos_intermedios()
+!     subroutine rejilla(tipo,aberr_tx,tx_esp,ty_esp)
 !         implicit none
-!         real(8),allocatable :: minman(:,:)
-!         integer :: i, num_min, num_max, j
-!         real(8), allocatable :: pos_pix(:), irrad(:), dummy(:)
-!         logical, allocatable :: es_max(:), es_min(:)
+!         character(len=3), intent(in) :: tipo
+!         real(dp), intent(in) :: aberr_tx,tx_esp,ty_esp
+!         real(dp)::argx,x_visib,y_visib
 
-!         allocate(pos_pix(num_dat), irrad(num_dat), dummy(num_dat), es_max(num_dat), es_min(num_dat))
+!         argx=(2.0_dp*pi*aberr_tx/delta)
 
-!          open(10, file=trim(carpeta)//'/gaussian_filtered.txt', status='old')
-!           do i = 1, num_dat
-!             read(10,*) pos_pix(i), dummy(i), irrad(i)
-!           end do
-!          close(10)
-
-!          es_min = .false.; es_max = .false.; num_min = 0; num_max = 0
-
-!          do i = 2, num_dat - 1
-!             if (irrad(i) < irrad(i-1) .and. irrad(i) < irrad(i+1)) then
-!                 es_min(i) = .true.; num_min = num_min + 1
-!             end if
-!             if (irrad(i) > irrad(i-1) .and. irrad(i) > irrad(i+1)) then
-!                 es_max(i) = .true.; num_max = num_max + 1
-!             end if
-!          end do
-
-!          cont_pin = num_min + num_max; j=0
-
-!          !  print*, "Total de maximos y minimos", cont_pin
-
-!          allocate(minman(cont_pin,3))
-
-!          do i = 2, num_dat - 1
-!             if (es_min(i) .or. es_max(i)) then ; j=j+1
-!                 minman(j,1)=i; 
-!                 minman(j,2)=pos_pix(i); 
-!                 minman(j,3)=irrad(i); 
+!         if(tipo=='bin') then
+!             write(40,*) tx_esp,ty_esp,(dcos(argx)+1)/2
+!         else if(tipo=='cos') then
+!             if(dcos(argx)>0.0_dp) then
+!                 x_visib=tx_esp; y_visib=ty_esp
+!                 write(40,*) x_visib,y_visib
 !             endif
-!          end do
+!         endif
 
-!          !  print'(A)', "Posición en lista"
-!          !  print*, int(minman(:,1))
-!          !  print'(A)', "Posición pixel en x"
-!          !  print*, int(minman(:,2))
-!          !  print'(A)', "Irradiancia de pixel"
-!          !  print*, minman(:,3)
-!          !  print'(A)',
-!          !  print'(A)', "Valor intermedio"
-!          !  print*, (pos_pix(170)+pos_pix(108))/2
+!     end subroutine rejilla
 
-!          !  open(85,file='puntos_binarizar.txt',action='write',position='append')
-!          do i = 1, cont_pin-1
-!             ! print*, int(minman(i+1,1)), int(minman(i,1))
-!             ! print*, int(pos_pix(int(minman(i,1)))),int(pos_pix(int(minman(i+1,1))))
-!             ! print*, int(pos_pix(int(minman(i,1)))+pos_pix(int(minman(i+1,1))))
-!             ! print*, int(pos_pix(int(minman(i+1,1)))+pos_pix(int(minman(i,1))))/2
-!             if(mod(i,2)/=0) then
-!                 write(85,'(I0,3X,I0)') int(pos_pix(int(minman(i+1,1)))+pos_pix(int(minman(i,1))))/2, FILA_EVF
-!                 ! write(85,'(I0,3X,I0)') int(pos_pix(int(minman(i+1,1))+10)+pos_pix(int(minman(i,1))+10))/2, FILA_EVF
-!                 ! write(85,'(I0,3X,I0)') int(pos_pix(int(minman(i+1,1))+25)+pos_pix(int(minman(i,1))+25))/2, FILA_EVF
-!                 ! write(85,'(I0,3X,I0)') int(pos_pix(int(minman(i+1,1))+30)+pos_pix(int(minman(i,1))+30))/2, FILA_EVF
-!                 ! write(85,'(I0,3X,I0)') int(pos_pix(int(minman(i+1,1))+45)+pos_pix(int(minman(i,1))+45))/2, FILA_EVF
-!                 ! write(85,'(I0,3X,I0)') int(pos_pix(int(minman(i+1,1))+50)+pos_pix(int(minman(i,1))+50))/2, FILA_EVF
-!                 ! write(85,'(I0,3X,I0)') int(pos_pix(int(minman(i+1,1))+55)+pos_pix(int(minman(i,1))+55))/2, FILA_EVF
-!                 ! write(85,'(I0,3X,I0)') int(pos_pix(int(minman(i+1,1))+58)+pos_pix(int(minman(i,1))+58))/2, FILA_EVF
-!             endif
-!             write(85,'(I0,3X,I0)') int(pos_pix(int(minman(i+1,1)))+pos_pix(int(minman(i,1))))/2, FILA_EVF
-!             ! print*,"----------------------------------------------------"
-!          end do
-!          !  close(85)
-        
-!         deallocate(pos_pix, irrad, dummy, es_max, es_min,minman)
-!     end subroutine puntos_intermedios
-
-!     subroutine puntos_maxmin()
+!     subroutine rejilla2(tipo,aberr_tx,aberr_ty)
 !         implicit none
-!         real(8),allocatable :: minman(:,:)
-!         integer :: i, num_min, num_max, j
-!         real(8), allocatable :: pos_pix(:), irrad(:), dummy(:)
-!         logical, allocatable :: es_max(:), es_min(:)
+!         character(len=3), intent(in) :: tipo
+!         real(dp), intent(in) :: aberr_tx,aberr_ty
+!         real(dp)::argx,argy
 
-!         allocate(pos_pix(num_dat), irrad(num_dat), dummy(num_dat), es_max(num_dat), es_min(num_dat))
+!         if(tipo=='bin2') then
+!         ! write(40,*) txron,tyron,(dcos(argx)+1)/2
+!         ! if(dcos(argx)>0.0_dp) then
+!         !         write(40,*) txron,tyron
+!         !     endif
+!         else if(tipo=='cos2') then
 
-!          open(10, file=trim(carpeta)//'/gaussian_filtered.txt', status='old')
-!           do i = 1, num_dat
-!             read(10,*) pos_pix(i), dummy(i), irrad(i)
-!           end do
-!          close(10)
+!         endif
 
-!          es_min = .false.; es_max = .false.; num_min = 0; num_max = 0
+!         argx=(2.0_dp*pi*aberr_tx/delta); argy=(2.0_dp*pi*aberr_ty/delta)
+!     end subroutine rejilla2
+! end module calculos_sagita
 
-!          do i = 2, num_dat - 1
-!             if (irrad(i) < irrad(i-1) .and. irrad(i) < irrad(i+1)) then
-!                 es_min(i) = .true.; num_min = num_min + 1
-!             end if
-!             if (irrad(i) > irrad(i-1) .and. irrad(i) > irrad(i+1)) then
-!                 es_max(i) = .true.; num_max = num_max + 1
-!             end if
-!          end do
-
-!          cont_pin = num_min + num_max; j=0
-
-!          allocate(minman(cont_pin,3))
-
-!          do i = 2, num_dat - 1
-!             if (es_min(i) .or. es_max(i)) then ; j=j+1
-!                 write(85,'(F18.12,3X,I0)') pos_pix(i), FILA_EVF
-!             endif
-!          end do
-        
-!         deallocate(pos_pix, irrad, dummy, es_max, es_min,minman)
-!     end subroutine puntos_maxmin
-
-!     subroutine txt_lista_minman()
-!         implicit none
-!         integer :: i, num_min, num_max
-!         real(8), allocatable :: pos_pix(:), irrad(:), dummy(:)
-!         logical, allocatable :: es_max(:), es_min(:)
-
-!         allocate(pos_pix(num_dat), irrad(num_dat), dummy(num_dat), es_max(num_dat), es_min(num_dat))
-
-!         open(10, file=trim(carpeta)//'/gaussian_filtered.txt', status='old')
-!          do i = 1, num_dat
-!             read(10,*) pos_pix(i), dummy(i), irrad(i)
-!          end do
-!         close(10)
-
-!         es_min = .false.; es_max = .false.; num_min = 0; num_max = 0
-
-!         do i = 2, num_dat - 1
-!             if (irrad(i) < irrad(i-1) .and. irrad(i) < irrad(i+1)) then
-!                 es_min(i) = .true.; num_min = num_min + 1
-!             end if
-!             if (irrad(i) > irrad(i-1) .and. irrad(i) > irrad(i+1)) then
-!                 es_max(i) = .true.; num_max = num_max + 1
-!             end if
-!         end do
-
-!         cont_pin = num_min + num_max
-
-!         open(38, file=trim(carpeta)//'/maximini.txt', status='replace')
-!          write(38,'(A,4X,A,10X,A)') "numdato", "pospix", "irrad"
-!          write(38,'(i4,3x,f12.6,3x,f12.6)') 1, pos_pix(1), irrad(1)
-
-!          do i = 2, num_dat - 1
-!             if (es_min(i) .or. es_max(i)) write(38,'(i4,3x,f12.6,3x,f12.6)') i, pos_pix(i), irrad(i)
-!          end do
-
-!          write(38,'(i4,3x,f12.6,3x,f12.6)') num_dat, pos_pix(num_dat), irrad(num_dat)
-!         close(38)
-        
-!         deallocate(pos_pix, irrad, dummy, es_max, es_min)
-!     end subroutine txt_lista_minman
-! end module calculos_para_optimizacion
-
-! module tratam_dat_sintexp
-!     use utiles
+! module simulador
+!     use utiles; use datos_compartidos
+!     use calculos_sagita
 !     implicit none
+!     character(len=20) :: tipo_if1(2,5)
+!     character(len=20) :: tipo_if2(2,8)
+!     character(len=3) :: tipo_rejilla
+!     integer :: datos_ciclo_do(5,4), tipo_num
+    
 ! contains
-!     subroutine datos_imagen()
+!     subroutine leer_datos
 !         implicit none
-!         open(unit=20, file=trim(carpeta)//'/datos_imagen.txt', status='old')
-!             read(20,*) ancho_pixo, alto_pixo
-!             read(20,'(A)') txtimage
-!         close(20)
+!         datos_esp%di = 14.0_dp; datos_esp%nlp = 50.0_dp; datos_esp%z0= 99.5_dp
+!         datos_esp%alfa = 0.0_dp; datos_esp%beta = 0.0_dp; datos_esp%gamma= 99.5_dp
+!         datos_esp%phi=0.0_dp; datos_esp%np=100
+!     end subroutine leer_datos
 
-!         arch_imagej = trim(carpeta)//'/'//trim(txtimage)//'.txt'
-!         datos = trim(carpeta)//'/datos_'//trim(txtimage)//'.txt'
-!     end subroutine datos_imagen
-
-!     subroutine datos_matriz_foto()
+!     subroutine ctes_sim()
 !         implicit none
-!         integer :: i, j, pix_esp
-!         real(4), allocatable :: foto(:,:)
-!         integer, allocatable :: listcantpixesp(:)
+!         sdi=datos_esp%di/2.0_dp; delta=2.54_dp/datos_esp%nlp; c=1.0_dp/datos_esp%rc
+!     end subroutine ctes_sim
 
-!         allocate(foto(alto_pixo, ancho_pixo))
-!         open(10, file=arch_imagej, status='old')
-!         do i = 1, alto_pixo
-!             read(10, *) (foto(i,j), j = 1, ancho_pixo)
-!         end do
-!         close(10)
+!     !datos ciclo do
+!     subroutine datos_para_ciclodo_if1()
+!         implicit none
+!         character(len=20) :: tipo
+!         integer :: i,tam, tam1, tam2, fila
 
-!         allocate(listcantpixesp(alto_pixo))
-!         alto_pixef = 0
-!         do i = 1, alto_pixo
-!             do j = 1, ancho_pixo
-!                 if (foto(i,j) /= 0) then
-!                     alto_pixef = alto_pixef + 1; exit
-!                 end if
-!             end do
-!             listcompcoord1(i,1) = j-1; listcompcoord1(i,2) = i 
-!         end do
+!         write(*,*) 'Ellige uno: completo, franja_simetrico, franja_cualq, fila_cualq, diametro'
+!         read(*,*) tipo
 
-!         do i = 1, alto_pixo
-!             if (listcompcoord1(i,1) /= ancho_pixo) then
-!                 min_pixny = i; exit
-!             end if
-!         end do
+!         tipo_if1(1,1) = 'completo'; tipo_if1(1,2) = 'franja_simetrico'; tipo_if1(1,3) = 'franja_cualq'
+!         tipo_if1(1,4) = 'fila_cualq'; tipo_if1(1,5) = 'diametro'
+!         tipo_if1(2,1) = '1'; tipo_if1(2,2) = '2'; tipo_if1(2,3) = '3'; tipo_if1(2,4) = '4'; tipo_if1(2,5) = '5'
 
-!         do i = 2, alto_pixo
-!             if (listcompcoord1(i,1) < listcompcoord1(i-1,1)) then
-!                 min_pixnx = listcompcoord1(i,1)
-!             elseif (listcompcoord1(i,1) > listcompcoord1(i-1,1)) then
+!         print*, tipo_if1
+
+!         do i = 1, 6
+!             if (tipo_if1(2,i)==tipo) then
+!                 ! read(tipo_if1(2,i),*) tipo_num
+!                 print*, 'Numero i', i
+!                 tipo_num = i
 !                 exit
-!             end if
+!             endif
+
 !         end do
 
-!         do i = 1, alto_pixo
-!             pix_esp = 0
-!             do j = 1, ancho_pixo
-!                 if (foto(i,j) > 0) pix_esp = pix_esp + 1
-!             end do
-!             listcantpixesp(i) = pix_esp
-!         end do
+!         print*, 'Numero asociado:', tipo_num
+!         tam=20
+!         tam1=-45; tam2=15
+!         fila=3
 
-!         ancho_pixef = 0
-!         do i = 2, alto_pixo
-!             if (listcantpixesp(i) > listcantpixesp(i-1)) then
-!                 ancho_pixef = listcantpixesp(i)
-!             elseif (listcantpixesp(i) < listcantpixesp(i-1)) then
+!         datos_ciclo_do(1,1) = 2*datos_esp%np+1; datos_ciclo_do(1,2) = -datos_esp%np; 
+!         datos_ciclo_do(1,3) = datos_esp%np; datos_ciclo_do(1,4) = 1;
+!         datos_ciclo_do(2,1) = 2*tam+1; datos_ciclo_do(2,2) = -tam; datos_ciclo_do(2,3) = tam; datos_ciclo_do(2,4) = 1;
+!         datos_ciclo_do(3,1) = abs(tam1)+abs(tam2); datos_ciclo_do(3,2) = tam1; datos_ciclo_do(3,3) = tam2; datos_ciclo_do(3,4) = 1;
+!         datos_ciclo_do(4,1) = 1; datos_ciclo_do(4,2) = fila!; datos_ciclo_do(4,3) = 0; datos_ciclo_do(4,4) = 1;
+!         datos_ciclo_do(5,1) = 1; datos_ciclo_do(5,2) = 0!; datos_ciclo_do(5,3) = 0; datos_ciclo_do(5,4) = 1;
+!     end subroutine datos_para_ciclodo_if1
+
+!     subroutine datos_para_ciclodo_if2()
+!         implicit none
+!         character(len=7) :: tipo
+!         integer :: i,tam, tam1, tam2, fila
+
+!         write(*,*) 'Ellige uno: birbin, bircos, ronbinx,roncosx,ronbiny,roncosy'
+!         read(*,*) tipo
+
+!         tipo_if2(1,1) = 'birbin'; tipo_if2(1,2) = 'bircos'; tipo_if2(1,3) = 'ronbinx'
+!         tipo_if2(1,4) = 'roncosx'; tipo_if2(1,5) = 'ronbiny'; tipo_if2(1,6) = 'roncosy'
+!         tipo_if2(1,7) = 'perbinx'; tipo_if2(1,8) = 'percosy'
+!         tipo_if2(2,1) = '1'; tipo_if2(2,2) = '2'; tipo_if2(2,3) = '3'; tipo_if2(2,4) = '4'; 
+!         tipo_if2(2,5) = '5'; tipo_if2(2,6) = '6'; tipo_if2(2,7) = '7'; tipo_if2(2,8) = '8'
+
+!         print*, tipo_if2
+
+!         do i = 1, 8
+!             if (tipo_if2(2,i)==tipo) then
+!                 ! read(tipo_if2(2,i),*) tipo_num
+!                 print*, 'Numero i', i
+!                 tipo_num = i
 !                 exit
-!             end if
+!             endif
+
 !         end do
 
-!         do i = 1, alto_pixo
-!             listcompcoord2(i,1) = listcompcoord1(i,1) + listcantpixesp(i)
-!             listcompcoord2(i,2) = i
-!         end do
-!         deallocate(foto, listcantpixesp)
-!     end subroutine datos_matriz_foto
+!         print*, 'Numero asociado:', tipo_num
+!         tam=20
+!         tam1=-3; tam2=5
+!         fila=3
+        
+!     end subroutine datos_para_ciclodo_if2
 
-!     subroutine coord_borde_esp()
+!     subroutine ciclo_do()
 !         implicit none
-!         integer :: i, j
-!         j = 0
-!         do i = 1, alto_pixo
-!             if (ancho_pixo /= listcompcoord1(i,1)) then
-!                 j = j + 1
-!                 listcoordbordesp(j,1) = listcompcoord1(i,1)
-!                 listcoordbordesp(j,2) = listcompcoord1(i,2)
-!             end if
+!         integer :: i,j,cont
+!         ! real(dp) :: ra
+
+!         cont=0
+!         do i = -datos_esp%np, datos_esp%np
+!             cont=cont+1
+!             arr_x(cont) = real(i,dp)*sdi/real(datos_esp%np, dp)
 !         end do
-!         j = alto_pixef
-!         do i = 1, alto_pixo
-!             if (ancho_pixo /= listcompcoord2(i,1)) then
-!                 j = j + 1
-!                 listcoordbordesp(j,1) = listcompcoord2(i,1)
-!                 listcoordbordesp(j,2) = listcompcoord2(i,2)
-!             end if
-!         end do
-!     end subroutine coord_borde_esp
 
-!     subroutine tres_puntos(x1,y1,x2,y2,x3,y3)
+!         print*, 'tipo_num', tipo_num
+
+!         print*, 'Datos ciclos do:', datos_ciclo_do(tipo_num,2), datos_ciclo_do(tipo_num,3)
+
+
+!         if (tipo_num == 1.or.tipo_num == 2.or.tipo_num == 3) then !completo
+!             cont=0
+!             do j = datos_ciclo_do(tipo_num,2), datos_ciclo_do(tipo_num,3),datos_ciclo_do(tipo_num,4)
+!             cont=cont+1
+!             arr_y(cont) = real(j,dp)*sdi/real(datos_esp%np, dp)
+!             end do
+!         else if (tipo_num == 4.or.tipo_num==5) then !fila cualqu
+!             j=datos_ciclo_do(tipo_num,2)
+!             arr_y(1)=real(j,dp)
+!         endif
+
+!         tam_pupila=0
+
+!         ! write(10,*) "size(arr_x), size(arr_y)", size(arr_x), size(arr_y)
+
+!         do i = 1, size(arr_x)
+!         do j = 1, size(arr_y)
+!             if(dist(arr_x(i),arr_y(j))<=sdi) then 
+!                 tam_pupila = tam_pupila+1
+!             endif
+!         enddo
+!         enddo
+
+!         print*, 'tamaño pupila', tam_pupila
+
+!     end subroutine ciclo_do
+
+!     !filtrar pupila, nuevo tamaño
+!     subroutine arreglo_pupila()
 !         implicit none
-!         integer, intent(out) :: x1,y1,x2,y2,x3,y3
-!         integer :: rees, indice_azar
-!         real :: r
-!         call random_number(r)
-!         indice_azar = 1 + int(alto_pixef * r)
-!         x1 = listcoordbordesp(indice_azar,1)
-!         y1 = listcoordbordesp(indice_azar,2)
+!         ! type1, intent(in) :: arg1
+!         ! type2, intent(out) ::  arg2
+!         integer :: i,j, cont
 
-!         if ((indice_azar + alto_pixef/3) <= alto_pixef) then
-!             x2 = listcoordbordesp(indice_azar + alto_pixef/3, 1)
-!             y2 = listcoordbordesp(indice_azar + alto_pixef/3, 2)
-!         else
-!             rees = (indice_azar + alto_pixef/3) - alto_pixef
-!             x2 = listcoordbordesp(rees, 1)
-!             y2 = listcoordbordesp(rees, 2)
-!         end if
+!         cont=0
 
-!         if (indice_azar + 2*alto_pixef/3 <= alto_pixef) then
-!             x3 = listcoordbordesp(indice_azar + 2*alto_pixef/3, 1)
-!             y3 = listcoordbordesp(indice_azar + 2*alto_pixef/3, 2)
-!         else
-!             rees = (indice_azar + 2*alto_pixef/3) - alto_pixef
-!             x3 = listcoordbordesp(rees, 1)
-!             y3 = listcoordbordesp(rees, 2)
-!         end if
-!     end subroutine tres_puntos
-
-!     subroutine calcular_centros(x1,y1,x2,y2,x3,y3,oxe,oye,sdipixe)
-!         implicit none
-!         integer, intent(in) :: x1,y1,x2,y2,x3,y3
-!         integer, intent(out) :: oxe,oye,sdipixe
-!         real(8) :: m1,m2,mp1,mp2,pmed1x,pmed1y,pmed2x,pmed2y
-!         real(8) :: a1,a2,b1,b2,c1,c2,det,detx,dety,ox,oy,sdipix
-!         integer :: tx1,tx2,tx3,ty1,ty2,ty3
-
-!         ty1=-y1; ty2=-y2; ty3=-y3; tx1=x1; tx2=x2; tx3=x3
-!         m1 = real(ty2-ty1)/real(tx2-tx1); m2 = real(ty3-ty2)/real(tx3-tx2)
-!         mp1 = -1.0d0/m1; mp2 = -1.0d0/m2
-!         pmed1x = 0.5d0*(tx1+tx2); pmed1y = 0.5d0*(ty1+ty2)
-!         pmed2x = 0.5d0*(tx3+tx2); pmed2y = 0.5d0*(ty3+ty2)
-!         a1=-mp1; a2=-mp2; b1=1.0d0; b2=1.0d0
-!         c1=-mp1*pmed1x + pmed1y; c2=-mp2*pmed2x + pmed2y
-!         det = a1*b2 - a2*b1; detx = c1*b2 - c2*b1; dety = a1*c2 - c1*a2
-!         ox = detx/det; oy = dety/det; sdipix = sqrt((tx2-ox)**2+(ty2-oy)**2)
-!         oxe = int(ox); oye = -int(oy); sdipixe = int(sdipix)
-!     end subroutine calcular_centros
+!         do i = 1, size(arr_x)
+!         do j = 1, size(arr_y)
+!             if(dist(arr_x(i),arr_y(j))<=sdi) then
+!                 cont=cont+1
+!                 arr_xy(1,cont) = arr_x(i)
+!                 arr_xy(2,cont) = arr_y(j)
+!             endif
+!         enddo
+!         enddo
+        
+!     end subroutine arreglo_pupila
     
-!     !Hay que hacer la matriz espejo rectangular y la matriz espejo pirámide.
-    
-!     subroutine matriz_espejo_efec_rect()
-!         implicit none
-!         integer :: i, j, max_pixnx, max_pixny
-!         real(4), allocatable :: foto(:,:)
+!     !comun calculos
 
-!         allocate(foto(alto_pixo, ancho_pixo))
+!     subroutine calculos_comunes(pupilax,pupilay)
+!         real(dp), intent(in) :: pupilax,pupilay
+!         real(dp) :: txron,tyron,argx,argy
+!         integer, parameter :: arch = 40
 
-!         open(10, file=arch_imagej, status='old')
-!             do i = 1, alto_pixo
-!                 read(10, *) (foto(i,j), j = 1, ancho_pixo)
-!             end do
-!         close(10)
+!         x=pupilax ; y=pupilay;
 
-!         max_pixny = min_pixny + alto_pixef; max_pixnx = min_pixnx + ancho_pixef
+!         numx0= num(x,y,zx,zy,datos_esp%alfa,datos_esp%beta,z)
+!         numy0= num(y,x,zy,zx,datos_esp%beta,datos_esp%alfa,z)
 
-!         open(11, file=trim(carpeta)//'/ronchi_exp_rect.txt', status='replace')
-!             do i = min_pixny, max_pixny
-!                 write(11,*) (foto(i,j), j = min_pixnx, max_pixnx)
-!             end do
-!         close(11)
+!         if ( tipo_num==1.or.tipo_num==2 ) then !if ( "bironchigrama" == 'bironchigrama' ) then
+!             numy0= num(y,x,zy,zx,datos_esp%beta,datos_esp%alfa,z)
+!             tx = aberracion_t(x,datos_esp%z0,z,numx0,deno)
+!             ty = aberracion_t(y,datos_esp%z0,z,numy0,deno)
 
-!         deallocate(foto)
-!     end subroutine matriz_espejo_efec_rect
+!             argx = (2.0_dp*pi*tx)/delta
+!             argy = (2.0_dp*pi*ty)/delta
 
-!     subroutine agregar_dat_exp()
-!         integer :: i, posicion
-!         real(8) :: coorinfl(cont_pin+2, 3), coor_x_max
+!             txron = aberracion_t(x,z_max,z,numx0,deno)
+!             tyron = aberracion_t(y,z_max,z,numy0,deno)
+            
+!             if ( tipo_num==1  ) then
 
-!         open(11, file=trim(carpeta)//'maximini.txt', status='old')
-!         read(11,*)
-!         do i = 1, cont_pin + 2
-!             read(11,*) posicion, coorinfl(i,2), coorinfl(i,3)
-!         end do
-!         close(11)
-!         coor_x_max = coorinfl((cont_pin/2) + 2, 2)
-!         open(unit=10, file=datos, status="unknown", position="append")
-!         write(10,*) m_dat, (coord_centrox - coor_x_max) * un_pixel
-!         close(10)
-!     end subroutine agregar_dat_exp 
-    
-! end module tratam_dat_sintexp
+!                 if(cos(argx)>=0.and.cos(argy)>=0) then
+!                     write(arch,*) txron, tyron
+!                 endif
 
-! module filtros_ajustes_dat
-!     use utiles
-!     implicit none
-! contains
-
-!     subroutine extraer_fila_efec()
-!         implicit none
-!         integer :: i, j, fila_eve
-!         real(4) :: espejo(alto_pixef+1, ancho_pixef+1)
-!         real(4), allocatable :: coordxirrad(:,:)
-
-!         open(11, file=trim(carpeta)//'/ronchi_exp_rect.txt', status='old')
-!             do i = 1, alto_pixef + 1
-!                 read(11, *) (espejo(i,j), j = 1, ancho_pixef + 1)
-!             end do
-!         close(11)
-
-!         fila_eve = fila_evf - min_pixny
-
-!         allocate(coordxirrad(ancho_pixef+1, 2))
-!          do i = 1, ancho_pixef + 1
-!             coordxirrad(i,1) = real(i + min_pixnx)
-!             coordxirrad(i,2) = espejo(fila_eve, i)
-!          end do
-
-!          num_dat = 0
-!          open(25, file=trim(carpeta)//'/fila_exp.txt', status='replace')
-!             do i = 1, ancho_pixef + 1
-!                 if (coordxirrad(i,2) > 0.0) then
-!                     num_dat = num_dat + 1
-!                     write(25,'(f14.7,f14.7)') coordxirrad(i,1), coordxirrad(i,2)
-!                 end if
-!             end do
-!          close(25)
-!         deallocate(coordxirrad)
-
-!     end subroutine extraer_fila_efec
-
-!     subroutine gaussian_filtered()
-!         implicit none
-!         integer :: i, j, half_window
-!         real(8), allocatable :: x(:), y(:), y_smoothed(:), weights(:)
-!         real(8) :: weight_sum
-
-!         half_window = int(3.0d0 * sigma)
-
-!         allocate(x(num_dat), y(num_dat), y_smoothed(num_dat), weights(-half_window:half_window))
+!             else if ( tipo_num==2  ) then
+!                 write(arch,*) txron,tyron,(cos(argx)+1)/4 + (cos(argy)+1)/4
+!             end if  
         
-!         open(15, file=trim(carpeta)//'/fila_exp.txt', status='old')
-!          do i = 1, num_dat
-!             read(15,*) x(i), y(i)
-!          end do
-!         close(15)
+!         else if (tipo_num==3.or.tipo_num==4 ) then!else if ("ronchigrama vertical x" == 'ronchigrama') then
+!             numy0= num(y,x,zy,zx,datos_esp%beta,datos_esp%alfa,z)
+!             tx = aberracion_t(x,datos_esp%z0,z,numx0,deno)
+!             argx = (2.0_dp*pi*tx)/delta
 
-!         weight_sum = 0.0d0
+!             if ( tipo_num==3  ) then
+!                 if(cos(argx)>=0.0_dp) then
+!                     txron = aberracion_t(x,z_max,z,numx0,deno)
+!                     tyron = aberracion_t(y,z_max,z,numy0,deno)
+!                     write(arch,*) txron, tyron
+!                 endif
+!             else if ( tipo_num==4  ) then
+!                 txron = aberracion_t(x,z_max,z,numx0,deno)
+!                 tyron = aberracion_t(y,z_max,z,numy0,deno)
+!                 write(arch,*) txron, tyron, (cos(argx)+1)/2
+!             end if  
+!         else if (tipo_num==5.or.tipo_num==6) then!else if ("ronchigrama horizontal y" == 'ronchigrama') then
+!             numy0= num(y,x,zy,zx,datos_esp%beta,datos_esp%alfa,z)
+!             ty = aberracion_t(y,datos_esp%z0,z,numy0,deno)
+!             argy = (2.0_dp*pi*ty)/delta
 
-!         do j = -half_window, half_window
-!             weights(j) = exp(-real(j)**2/(2.0d0*sigma**2))
-!             weight_sum = weight_sum + weights(j)
-!         end do
+!             if ( tipo_num==5  ) then
 
-!         weights = weights / weight_sum
+!                 if(cos(argy)>=0.0_dp) then
+!                     txron = aberracion_t(x,z_max,z,numx0,deno)
+!                     tyron = aberracion_t(y,z_max,z,numy0,deno)
+!                     write(arch,*) txron, tyron
+!                 endif
 
-!         do i = 1, num_dat
-!             y_smoothed(i) = 0.0d0
-!             do j = -half_window, half_window
-!                 if (i + j >= 1 .and. i + j <= num_dat) then
-!                     y_smoothed(i) = y_smoothed(i) + weights(j) * y(i + j)
-!                 end if
-!             end do
-!         end do
+!             else if ( tipo_num==6  ) then
+!                 txron = aberracion_t(x,z_max,z,numx0,deno)
+!                 tyron = aberracion_t(y,z_max,z,numy0,deno)
+!                 write(arch,*) txron, tyron, (cos(argy)+1)/2
+!             end if  
+!         else if (tipo_num==7.or.tipo_num==8) then!else if perfil de fila
+            
+!             tx = aberracion_t(x,datos_esp%z0,z,numx0,deno)
+!             argx = (2.0_dp*pi*tx)/delta
 
-!         open(10, file=trim(carpeta)//'/gaussian_filtered.txt', status='replace')
-!          do i = 1, num_dat
-!             write(10,'(f12.6,1x,f12.6,1x,f18.6)') x(i), y(i), y_smoothed(i)
-!          end do
-!         close(10)
-
-!         deallocate(x, y, y_smoothed, weights)
-!     end subroutine gaussian_filtered
-! end module filtros_ajustes_dat
-
-! module graficos
-!     use utiles
-!     implicit none
-    
-! contains
-!     subroutine grafica_compar(rc,k)
-!         implicit none
-!         real(dp), intent(in) :: rc, k
-!         character(len=72) :: Valor_rc_str, Valor_k_str, Valor_z_str
-
-!         write(Valor_rc_str, '(F14.8)') rc; write(Valor_k_str, '(F12.8)') k    
-!         write(Valor_z_str, '(F12.8)') datos_esp%z0
-
-!         open(unit=30, file='salida/grafica_comp.txt', status='replace')
-!          write(30,*) 'set xlabel "eje pixeles (cm)"'
-!          write(30,*) 'set ylabel "eje irradiancia (escala de grises)"'
-!          write(30,*) 'set size ratio 1'
-!          write(30,*) 'set title "Comparación z_0='//trim(Valor_z_str)//': sim1 desc, sim2 k='//trim(Valor_k_str)//' y rc='//trim(Valor_rc_str)//'"'
-!          write(30,*) 'set grid'
-!          write(30,*) 'set grid'
-!          write(30,*) 'plot "salida/sim1.txt" using 1:2 with lines title "sim1","salida/sim2.txt" using 1:2 with lines'
-!         close(30)
-!       call system('gnuplot -p salida/grafica_comp.txt')
-!     endsubroutine grafica_compar
-
-!     subroutine grafica_fila(rc,k)
-!         implicit none
-!         real(dp), intent(in) :: rc, k
-!         character(len=72) :: Valor_rc_str, Valor_k_str, Valor_z_str
-
-!         write(Valor_rc_str, '(F14.8)') rc; write(Valor_k_str, '(F12.8)') k    
-!         write(Valor_z_str, '(F12.8)') datos_esp%z0
-
-!         open(unit=30, file='Datos_Grafica_Ronchi_Fila.txt', status='replace')
-!          write(30,*) 'set xlabel "eje pixeles (cm)"'
-!          write(30,*) 'set ylabel "eje irradiancia (escala de grises)"'
-!          write(30,*) 'set title "z_0='//trim(Valor_z_str)//', k='//trim(Valor_k_str)//' y rc='//trim(Valor_rc_str)//'"'
-!          write(30,*) 'set grid'
-!          write(30,*) 'plot "ronchigrama_fila.txt"'
-!         close(30)
-!         call system('gnuplot -p Datos_Grafica_Ronchi_Fila.txt')
-!     endsubroutine grafica_fila
-
-!     subroutine grafica_completo_bin(Valor_rc_str,Valor_k_str)
-!         implicit none
-!         character(len=72), intent(in) :: Valor_rc_str, Valor_k_str
-!         character(len=72) :: Valor_z_str
-!         character(len=200) :: texto_titulo
-        
-!         write(Valor_z_str, '(F12.8)') datos_esp%z0  
-        
-!         texto_titulo = 'set title "z_0=' // trim(adjustl(Valor_z_str)) //', k=' // trim(adjustl(Valor_k_str)) // &
-!         ' y rc=' // trim(adjustl(Valor_rc_str)) // '"'
-
-!         open(unit=30, file='salida/Datos_Grafica_RonchiComp.txt', status='replace')
-!          write(30,*) 'set term qt'
-!          write(30,*) 'set terminal qt font "Monaco,12"'
-!          write(30,*) 'set xlabel "eje x (cm)"'
-!          write(30,*) 'set ylabel "eje y (cm)"'
-!          write(30,*) 'set size ratio 1'
-!          write(30,*) trim(texto_titulo)
-!          write(30,*) 'set grid'
-!          write(30,*) 'plot "salida/ronchigrama_comp.txt" ls 0 lc 16 notitle'
-!         close(30)
-!         call system('gnuplot -p salida/Datos_Grafica_RonchiComp.txt')
-!     endsubroutine grafica_completo_bin
-
-!     subroutine grafica_gaussian()
-!         implicit none
-!         character(len=260) :: tit, comando, arch
-
-!         arch = trim(carpeta)//'/gaussian_filtered.txt'
-!         print*,"ARCHIVO", arch
-!         write(tit,'(a,f12.6)') 'filtro gaussiano sigma=', sigma
-        
-!         open(30, file=trim(carpeta)//'/graf_g.txt', status='replace')
-!          write(30,*) 'set title "'//trim(tit)//'"'
-!          write(30,*) 'set grid'
-!          write(30,*) 'plot "'//trim(arch)//'" u 1:2 w l t "orig", "'//trim(arch)//'" u 1:3 w l t "filt"'
-!         close(30)
-
-!         comando = 'gnuplot -p ' // trim(carpeta) // '/graf_g.txt'
-!         call system(comando)
-!     end subroutine grafica_gaussian
-
-!     subroutine png_bin(Valor_rc_str,Valor_k_str)
-!         implicit none
-!         character(len=72), intent(in) :: Valor_rc_str, Valor_k_str
-!         character(len=72) :: Valor_z_str
-!         character(len=200) :: texto_titulo,url_plantilla,archivo_datosgnuplot,comando_sistema
-        
-!         write(Valor_z_str, '(F12.8)') datos_esp%z0  
-        
-!         texto_titulo = 'set title "z_0=' // trim(adjustl(Valor_z_str)) //', k=' // trim(adjustl(Valor_k_str)) // &
-!         ' y rc=' // trim(adjustl(Valor_rc_str)) // '"'
-
-!         url_plantilla = '/Users/berenicecortes/Desktop/carpeta_de_carpetas_plantillas/espejoresumen8rc9581k-098'
-
-!         archivo_datosgnuplot= trim(url_plantilla)//'/Datos_PNG_RonchiComp.txt'
-
-!         open(unit=30, file=trim(archivo_datosgnuplot), status='replace')
-!             write(30,*) 'set terminal pngcairo size 800,800 background "white"'
-!             write(30,*) 'set output "'//trim(url_plantilla)//'/imagen_ronchi_simu.png"'
-!             write(30,*) 'set size ratio 1'
-!             write(30,*) trim(texto_titulo)
-!             ! Ocultar todos los elementos decorativos
-!             write(30,*) 'unset key'         ! Oculta la leyenda
-!             write(30,*) 'unset tics'        ! Oculta las marcas de graduación/números de los ejes
-!             write(30,*) 'unset border'      ! Oculta el recuadro exterior
-!             write(30,*) 'unset colorbox'    ! Oculta la barra de escala de color (paleta de grises)
-!             write(30,*) 'set palette gray'
-!             ! write(30,*) 'set lmargin 0'
-!             ! write(30,*) 'set rmargin 0'
-!             ! write(30,*) 'set tmargin 0'
-!             ! write(30,*) 'set bmargin 0'
-!             write(30,*) 'plot "salida/ronchigrama_comp.txt" ls 0 lc 16 notitle'
-!             write(30,*) 'set output'
-!         close(30)
-
-!         comando_sistema = 'gnuplot -p "' // trim(archivo_datosgnuplot) // '"'
-!         call system(trim(comando_sistema))
-!     endsubroutine png_bin
-
-!     subroutine grafica_completo_cos(Valor_rc_str,Valor_k_str)
-!         implicit none
-!         character(len=72), intent(in) :: Valor_rc_str, Valor_k_str
-!         character(len=72) :: Valor_z_str
-!         character(len=200) :: texto_titulo
-        
-!         write(Valor_z_str, '(F12.8)') datos_esp%z0  
-        
-!         texto_titulo = 'set title "z_0=' // trim(adjustl(Valor_z_str)) //', k=' // trim(adjustl(Valor_k_str)) // &
-!         ' y rc=' // trim(adjustl(Valor_rc_str)) // '"'
-
-!         open(unit=30, file='salida/Datos_Grafica_RonchiComp.txt', status='replace')
-!          write(30,*) 'set term qt'
-!          write(30,*) 'set terminal qt font "Monaco,12"'
-!          write(30,*) 'set xlabel "eje x (cm)"'
-!          write(30,*) 'set ylabel "eje y (cm)"'
-!          write(30,*) 'set size ratio 1'
-!          write(30,*) trim(texto_titulo)
-!          write(30,*) 'set grid'
-!          write(30,*) 'set palette gray'
-!          write(30,*) 'set cblabel "Intensidad (z)"'
-!          write(30,*) 'set colorbox'
-!          write(30,*) 'unset key'
-!          write(30,*) 'plot "salida/ronchigrama_comp.txt" using 1:2:3 with points palette pt 7 ps 1 notitle'
-!         close(30)
-!         call system('gnuplot -p salida/Datos_Grafica_RonchiComp.txt')
-!     endsubroutine grafica_completo_cos
-
-!     subroutine png_cos(Valor_rc_str,Valor_k_str)
-!         implicit none
-!         character(len=72), intent(in) :: Valor_rc_str, Valor_k_str
-!         character(len=72) :: Valor_z_str, name_image
-!         character(len=200) :: texto_titulo,archivo_datosgnuplot,comando_sistema
-        
-!         write(Valor_z_str, '(F12.8)') datos_esp%z0  
-        
-!         texto_titulo = 'set title "z_0=' // trim(adjustl(Valor_z_str)) //', k=' // trim(adjustl(Valor_k_str)) // &
-!         ' y rc=' // trim(adjustl(Valor_rc_str)) // '"'
-
-!         ! url_plantilla = '/Users/berenicecortes/Desktop/carpeta_de_carpetas_plantillas/espejoresumen8rc9581k-098'
-        
-!         open(unit=30, file=trim(ruta%rutaruta)//'/ruta.txt', status='old', action='read')
-!          read(30,'(A)') name_image
-!         close(30)
-
-!         archivo_datosgnuplot= trim(ruta%rutaruta)//'/Datos_PNG_RonchiComp.txt'
-
-!         open(unit=30, file=trim(archivo_datosgnuplot), status='replace')
-!             write(30,*) 'set terminal pngcairo size 800,800 background "white"'
-!             write(30,*) 'set output "'//trim(ruta%rutaruta)//'/'//trim(name_image)//'.png"'
-!             write(30,*) 'set size ratio 1'
-!             write(30,*) trim(texto_titulo)
-!             ! Ocultar todos los elementos decorativos
-!             write(30,*) 'unset key'         ! Oculta la leyenda
-!             write(30,*) 'unset tics'        ! Oculta las marcas de graduación/números de los ejes
-!             write(30,*) 'unset border'      ! Oculta el recuadro exterior
-!             write(30,*) 'unset colorbox'    ! Oculta la barra de escala de color (paleta de grises)
-!             write(30,*) 'set palette gray'
-!             ! write(30,*) 'set lmargin 0'
-!             ! write(30,*) 'set rmargin 0'
-!             ! write(30,*) 'set tmargin 0'
-!             ! write(30,*) 'set bmargin 0'
-!             write(30,*) 'plot "salida/ronchigrama_comp.txt" using 1:2:3 with points palette pt 7 ps 1 notitle'
-!             write(30,*) 'set output'
-!         close(30)
-
-!         comando_sistema = 'gnuplot -p "' // trim(archivo_datosgnuplot) // '"'
-!         call system(trim(comando_sistema))
-!     endsubroutine png_cos 
-! end module graficos
+!             if ( tipo_num==7  ) then
+!                 txron = aberracion_t(x,z_max,z,numx0,deno)
+!                 if(cos(argx)>=0.0_dp) then                    
+!                     write(arch,*) txron, 0.0_dp
+!                 else
+!                     write(arch,*) txron, 1.0_dp
+!                 endif
+!             else if ( tipo_num==8  ) then
+!                 txron = aberracion_t(x,z_max,z,numx0,deno)
+!                 write(arch,*) txron, (cos(argx)+1)/2
+!             end if   
+!         end if 
+!     end subroutine calculos_comunes
+! end module simulador
