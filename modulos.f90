@@ -376,7 +376,6 @@ end module utiles
 
 module inicios
     implicit none
-    
 contains
     subroutine inicio()
         use utiles
@@ -426,381 +425,316 @@ contains
 
         call leer_archivo()
     end subroutine editar
-    
 end module inicios
 
-! module datos_compartidos
-!     use utiles
-!   implicit none
-!   real(dp), allocatable :: arr_x(:), arr_y(:),arr_xy(:,:)
-!   integer :: tam_pupila
+module calculos_ronchigrama
+    use utiles
+    implicit none
+    real(dp) ::  x, y, raiz,z,zx,zy,raiz_max,z_max,deno,numx0,numy0,tx,ty,tx_ron,ty_ron
+    real(dp) :: sdi, delta, c
+    character(len=20) :: tipo_if1(2,5)
+    character(len=20) :: tipo_if2(2,8)
+    character(len=3) :: tipo_rejilla
+    integer :: datos_ciclodo_if1(5,4), tipo_num, tipo_numif2
+    real(dp), allocatable :: arr_x(:), arr_y(:)
 
-! contains
+contains
 
-!   subroutine asegurar_dimension_arrx()
-!     implicit none
-!     integer :: n
+    subroutine simulacion_png(nombre_puntos_ronchigrama)
+        implicit none
+        character(len=72), intent(in) :: nombre_puntos_ronchigrama
+        integer :: i, j
 
-!     n=2*datos_esp%np+1
+        call leer_datos
+        call ctes_sim
+        call datos_if1
+        call asegurar_dimension_arrx
+        call asegurar_dimension_arry(datos_ciclodo_if1(tipo_num,1))
+        call if1
+        call datos_if2
 
-!     if (.not. allocated(arr_x)) then
-!       allocate(arr_x(n))
-!     else if (size(arr_x) /= n) then
-!       ! Si ya existe pero con diferente tamaño, se redimensiona
-!       deallocate(arr_x)
-!       allocate(arr_x(n))
-!     end if
-!   end subroutine asegurar_dimension_arrx
+        open(40,file=nombre_puntos_ronchigrama,status='replace')
+            do i = 1, size(arr_x)
+            do j = 1, size(arr_y)
+                if(dist(arr_x(i),arr_y(j)) <= sdi) then 
+                    call comun(datos_esp%k,c,dist(arr_x(i),arr_y(j)),arr_x(i),arr_y(j),sdi)
+                    call if2(arr_x(i),arr_y(j))
+                end if
+            enddo
+            enddo
+        close(40)
 
-!   subroutine asegurar_dimension_arry_y(n)
-!     implicit none
-!     integer, intent(in) :: n
+    end subroutine simulacion_png
 
-!     if (.not. allocated(arr_y)) then
-!       allocate(arr_y(n))
-!     else if (size(arr_y) /= n) then
-!       ! Si ya existe pero con diferente tamaño, se redimensiona
-!       deallocate(arr_y)
-!       allocate(arr_y(n))
-!     end if
-!   end subroutine asegurar_dimension_arry_y
+    subroutine simulacion_array
+        implicit none
+        integer :: cont!,i,j
 
-!   subroutine asegurar_dimension_arry_xy(n)
-!     implicit none
-!     integer, intent(in) :: n
+        !Subrutina, tamaño fila pupila
+        cont=0
 
-!     if (.not. allocated(arr_xy)) then
-!       allocate(arr_xy(2,n))
-!     else if (size(arr_xy) /= 2*n) then
-!       ! Si ya existe pero con diferente tamaño, se redimensiona
-!       deallocate(arr_xy)
-!       allocate(arr_xy(2,n))
-!     end if
-!   end subroutine asegurar_dimension_arry_xy
+        ! do i = 1, size(arr_x)
+        ! do j = 1, size(arr_y)
+        !     if(dist(arr_x(i),arr_y(j))<=sdi) then
+        !         cont=cont+1
+        !         arr_xy(1,cont) = arr_x(i)
+        !         arr_xy(2,cont) = arr_y(j)
+        !     endif
+        ! enddo
+        ! enddo
+    end subroutine simulacion_array
 
-! end module datos_compartidos
+    subroutine asegurar_dimension_arrx()
+        implicit none
+        integer :: n
 
-! module calculos_sagita
-!     use utiles
-!     implicit none
-!     real(dp) :: sdi, delta, ra, c, x, y, raiz,z,zx,zy,raiz_max,z_max,deno,numx0,numy0,tx,ty,tx_ron,ty_ron
+        n=2*datos_esp%np+1
 
-! contains
+        if (.not. allocated(arr_x)) then
+        allocate(arr_x(n))
+        else if (size(arr_x) /= n) then
+        ! Si ya existe pero con diferente tamaño, se redimensiona
+        deallocate(arr_x)
+        allocate(arr_x(n))
+        end if
+    end subroutine asegurar_dimension_arrx
 
-!     function dist(a,b) result(c)
-!         implicit none
-!         real(dp), intent(in) :: a,b
-!         real(dp) :: c
-!         c=dsqrt(a**2+b**2)
-!     end function dist
+    subroutine asegurar_dimension_arry(n)
+     implicit none
+     integer, intent(in) :: n
 
-!     subroutine comun(k,c,ra,x,y,sdi)
-!         implicit none
-!         real(dp), intent(in) :: k,c,ra,x,y,sdi
-!         ! real(dp), intent(out) :: raiz,z,zx,zy,raiz_max,z_max,deno
+        if (.not. allocated(arr_y)) then
+        allocate(arr_y(n))
+        else if (size(arr_y) /= n) then
+        ! Si ya existe pero con diferente tamaño, se redimensiona
+        deallocate(arr_y)
+        allocate(arr_y(n))
+        end if
+    end subroutine asegurar_dimension_arry
+
+    function dist(a,b) result(distancia)
+        implicit none
+        real(dp), intent(in) :: a,b
+        real(dp) :: distancia
+        distancia=dsqrt(a**2+b**2)
+    end function dist
+
+    subroutine comun(k,c,ra,x,y,sdi)
+        implicit none
+        real(dp), intent(in) :: k,c,ra,x,y,sdi
         
-!         raiz=dsqrt(1.0_dp-(k+1.0_dp)*c**2*ra**2)
-!         z=(c*ra**2)/(1.0_dp+raiz)
-!         zx=c*x/(raiz)
-!         zy=c*y/(raiz)
+        raiz=dsqrt(1.0_dp-(k+1.0_dp)*c**2*ra**2)
+        z=(c*ra**2)/(1.0_dp+raiz)
+        zx=c*x/(raiz)
+        zy=c*y/(raiz)
 
-!         raiz_max=dsqrt(1.0_dp-(k+1.0_dp)*c**2*sdi**2)
-!         z_max=(c*sdi**2)/(1.0_dp+raiz_max)
-!         deno=(datos_esp%gamma-z)*(1.0_dp-zx*zx-zy*zy)+2.0_dp*(zx*(x-datos_esp%alfa)+zy*(y-datos_esp%beta))
-!     end subroutine comun
+        raiz_max = dsqrt(1.0_dp-(k+1.0_dp)*c**2*sdi**2)
+        z_max = (c*sdi**2)/(1.0_dp+raiz_max)
+        deno = (datos_esp%gamma-z)*(1.0_dp-zx*zx-zy*zy)+2.0_dp*(zx*(x-datos_esp%alfa)+zy*(y-datos_esp%beta))
+    end subroutine comun
     
-!     function num(vi,vj,pvi,pvj,vli,vlj,vk) result(numerador_i)
-!         implicit none
-!         real(dp), intent(in):: vi,vj,pvi,pvj,vli,vlj,vk
-!         real(dp) :: numerador_i
-!         numerador_i = (vi-vli)*(1.0_dp-pvi*pvi+pvj*pvj)-2.0_dp*pvi*(pvj*(vj-vlj)+(datos_esp%gamma-vk))
-!     end function num
+    function num(vi,vj,pvi,pvj,vli,vlj,vk) result(numerador_i)
+        implicit none
+        real(dp), intent(in):: vi,vj,pvi,pvj,vli,vlj,vk
+        real(dp) :: numerador_i
+        numerador_i = (vi-vli)*(1.0_dp-pvi*pvi+pvj*pvj)-2.0_dp*pvi*(pvj*(vj-vlj)+(datos_esp%gamma-vk))
+    end function num
 
-!     function aberracion_t(vi,vkp,vk,nume,denom) result(abtr)
-!         real(dp), intent(in) :: vi,vk,nume,denom,vkp
-!         real(dp) :: abtr
+    function aberracion_t(vi,vkp,vk,nume,denom) result(abtr)
+        real(dp), intent(in) :: vi,vk,nume,denom,vkp
+        real(dp) :: abtr
 
-!         abtr = vi+(vkp-vk)*(nume/denom)
-!     end function aberracion_t
+        abtr = vi+(vkp-vk)*(nume/denom)
+    end function aberracion_t
 
-!     subroutine rejilla(tipo,aberr_tx,tx_esp,ty_esp)
-!         implicit none
-!         character(len=3), intent(in) :: tipo
-!         real(dp), intent(in) :: aberr_tx,tx_esp,ty_esp
-!         real(dp)::argx,x_visib,y_visib
+    subroutine leer_datos
+        implicit none
+        datos_esp%di = 14.0_dp; datos_esp%nlp = 50.0_dp; datos_esp%z0= 99.5_dp
+        datos_esp%alfa = 0.0_dp; datos_esp%beta = 0.0_dp; datos_esp%gamma= 99.5_dp
+        datos_esp%phi=0.0_dp; datos_esp%np= 100; datos_esp%rc=100.0_dp; datos_esp%k =-1.80_dp
+    end subroutine leer_datos
 
-!         argx=(2.0_dp*pi*aberr_tx/delta)
+    subroutine ctes_sim()
+        implicit none
+        sdi=datos_esp%di/2.0_dp; delta=2.54_dp/datos_esp%nlp; c=1.0_dp/datos_esp%rc
+    end subroutine ctes_sim
 
-!         if(tipo=='bin') then
-!             write(40,*) tx_esp,ty_esp,(dcos(argx)+1)/2
-!         else if(tipo=='cos') then
-!             if(dcos(argx)>0.0_dp) then
-!                 x_visib=tx_esp; y_visib=ty_esp
-!                 write(40,*) x_visib,y_visib
-!             endif
-!         endif
+    subroutine datos_if1()
+        implicit none
+        character(len=20) :: tipo
+        integer :: tam_compl,tam_fransi,tam_francu,tam_filacu,tam_diam
+        integer :: lim_arr1,lim_abj1,lim_arr2,lim_abj2,lim_arr3,lim_abj3, fila, diam
+        integer :: i, paso_comp, paso_fransi, paso_francu, paso_fila, paso_diam
 
-!     end subroutine rejilla
+        tipo_if1(1,1) = 'completo'; tipo_if1(1,2) = 'franja_simetrico'; tipo_if1(1,3) = 'franja_cualq'
+        tipo_if1(1,4) = 'fila_cualq'; tipo_if1(1,5) = 'diametro'
+        tipo_if1(2,1) = '1'; tipo_if1(2,2) = '2'; tipo_if1(2,3) = '3'; tipo_if1(2,4) = '4'; tipo_if1(2,5) = '5'
 
-!     subroutine rejilla2(tipo,aberr_tx,aberr_ty)
-!         implicit none
-!         character(len=3), intent(in) :: tipo
-!         real(dp), intent(in) :: aberr_tx,aberr_ty
-!         real(dp)::argx,argy
+        write(*,*) 'Ellige uno:'
+        print*, tipo_if1(1,:)
+        read(*,*) tipo
 
-!         if(tipo=='bin2') then
-!         ! write(40,*) txron,tyron,(dcos(argx)+1)/2
-!         ! if(dcos(argx)>0.0_dp) then
-!         !         write(40,*) txron,tyron
-!         !     endif
-!         else if(tipo=='cos2') then
+        do i = 1, 5
+            if (tipo_if1(1,i)==tipo) then
+                read(tipo_if1(2,i),*) tipo_num
+                exit
+            endif
+        end do
 
-!         endif
-
-!         argx=(2.0_dp*pi*aberr_tx/delta); argy=(2.0_dp*pi*aberr_ty/delta)
-!     end subroutine rejilla2
-! end module calculos_sagita
-
-! module simulador
-!     use utiles; use datos_compartidos
-!     use calculos_sagita
-!     implicit none
-!     character(len=20) :: tipo_if1(2,5)
-!     character(len=20) :: tipo_if2(2,8)
-!     character(len=3) :: tipo_rejilla
-!     integer :: datos_ciclo_do(5,4), tipo_num
-    
-! contains
-!     subroutine leer_datos
-!         implicit none
-!         datos_esp%di = 14.0_dp; datos_esp%nlp = 50.0_dp; datos_esp%z0= 99.5_dp
-!         datos_esp%alfa = 0.0_dp; datos_esp%beta = 0.0_dp; datos_esp%gamma= 99.5_dp
-!         datos_esp%phi=0.0_dp; datos_esp%np=100
-!     end subroutine leer_datos
-
-!     subroutine ctes_sim()
-!         implicit none
-!         sdi=datos_esp%di/2.0_dp; delta=2.54_dp/datos_esp%nlp; c=1.0_dp/datos_esp%rc
-!     end subroutine ctes_sim
-
-!     !datos ciclo do
-!     subroutine datos_para_ciclodo_if1()
-!         implicit none
-!         character(len=20) :: tipo
-!         integer :: i,tam, tam1, tam2, fila
-
-!         write(*,*) 'Ellige uno: completo, franja_simetrico, franja_cualq, fila_cualq, diametro'
-!         read(*,*) tipo
-
-!         tipo_if1(1,1) = 'completo'; tipo_if1(1,2) = 'franja_simetrico'; tipo_if1(1,3) = 'franja_cualq'
-!         tipo_if1(1,4) = 'fila_cualq'; tipo_if1(1,5) = 'diametro'
-!         tipo_if1(2,1) = '1'; tipo_if1(2,2) = '2'; tipo_if1(2,3) = '3'; tipo_if1(2,4) = '4'; tipo_if1(2,5) = '5'
-
-!         print*, tipo_if1
-
-!         do i = 1, 6
-!             if (tipo_if1(2,i)==tipo) then
-!                 ! read(tipo_if1(2,i),*) tipo_num
-!                 print*, 'Numero i', i
-!                 tipo_num = i
-!                 exit
-!             endif
-
-!         end do
-
-!         print*, 'Numero asociado:', tipo_num
-!         tam=20
-!         tam1=-45; tam2=15
-!         fila=3
-
-!         datos_ciclo_do(1,1) = 2*datos_esp%np+1; datos_ciclo_do(1,2) = -datos_esp%np; 
-!         datos_ciclo_do(1,3) = datos_esp%np; datos_ciclo_do(1,4) = 1;
-!         datos_ciclo_do(2,1) = 2*tam+1; datos_ciclo_do(2,2) = -tam; datos_ciclo_do(2,3) = tam; datos_ciclo_do(2,4) = 1;
-!         datos_ciclo_do(3,1) = abs(tam1)+abs(tam2); datos_ciclo_do(3,2) = tam1; datos_ciclo_do(3,3) = tam2; datos_ciclo_do(3,4) = 1;
-!         datos_ciclo_do(4,1) = 1; datos_ciclo_do(4,2) = fila!; datos_ciclo_do(4,3) = 0; datos_ciclo_do(4,4) = 1;
-!         datos_ciclo_do(5,1) = 1; datos_ciclo_do(5,2) = 0!; datos_ciclo_do(5,3) = 0; datos_ciclo_do(5,4) = 1;
-!     end subroutine datos_para_ciclodo_if1
-
-!     subroutine datos_para_ciclodo_if2()
-!         implicit none
-!         character(len=7) :: tipo
-!         integer :: i,tam, tam1, tam2, fila
-
-!         write(*,*) 'Ellige uno: birbin, bircos, ronbinx,roncosx,ronbiny,roncosy'
-!         read(*,*) tipo
-
-!         tipo_if2(1,1) = 'birbin'; tipo_if2(1,2) = 'bircos'; tipo_if2(1,3) = 'ronbinx'
-!         tipo_if2(1,4) = 'roncosx'; tipo_if2(1,5) = 'ronbiny'; tipo_if2(1,6) = 'roncosy'
-!         tipo_if2(1,7) = 'perbinx'; tipo_if2(1,8) = 'percosy'
-!         tipo_if2(2,1) = '1'; tipo_if2(2,2) = '2'; tipo_if2(2,3) = '3'; tipo_if2(2,4) = '4'; 
-!         tipo_if2(2,5) = '5'; tipo_if2(2,6) = '6'; tipo_if2(2,7) = '7'; tipo_if2(2,8) = '8'
-
-!         print*, tipo_if2
-
-!         do i = 1, 8
-!             if (tipo_if2(2,i)==tipo) then
-!                 ! read(tipo_if2(2,i),*) tipo_num
-!                 print*, 'Numero i', i
-!                 tipo_num = i
-!                 exit
-!             endif
-
-!         end do
-
-!         print*, 'Numero asociado:', tipo_num
-!         tam=20
-!         tam1=-3; tam2=5
-!         fila=3
+        print*, 'Numero asociado:', tipo_num
         
-!     end subroutine datos_para_ciclodo_if2
+        lim_arr1 = datos_esp%np; lim_abj1 = -datos_esp%np; tam_compl = 2*datos_esp%np+1; paso_comp = 1
+        lim_arr2 = 10; lim_abj2 = -lim_arr2; tam_fransi = 2*lim_arr2+1; paso_fransi = 1
+        lim_arr3 = 10; lim_abj3 = -15; tam_francu = abs(lim_arr3)+abs(lim_abj3); paso_francu = 1
+        tam_filacu = 1; fila = -2; paso_fila = 1
+        tam_diam = 1; diam = 0; paso_diam = 1
 
-!     subroutine ciclo_do()
-!         implicit none
-!         integer :: i,j,cont
-!         ! real(dp) :: ra
+        datos_ciclodo_if1(1,1) = tam_compl; datos_ciclodo_if1(1,2) = lim_arr1; datos_ciclodo_if1(1,3) = lim_abj1; 
+        datos_ciclodo_if1(1,4) = paso_comp;
 
-!         cont=0
-!         do i = -datos_esp%np, datos_esp%np
-!             cont=cont+1
-!             arr_x(cont) = real(i,dp)*sdi/real(datos_esp%np, dp)
-!         end do
+        datos_ciclodo_if1(2,1) = tam_fransi; datos_ciclodo_if1(2,2) = lim_arr2; datos_ciclodo_if1(2,3) = lim_abj2; 
+        datos_ciclodo_if1(2,4) = paso_fransi;
 
-!         print*, 'tipo_num', tipo_num
+        datos_ciclodo_if1(3,1) = tam_filacu; datos_ciclodo_if1(3,2) = lim_arr3; datos_ciclodo_if1(3,3) = lim_abj3; 
+        datos_ciclodo_if1(3,4) = paso_fransi;
 
-!         print*, 'Datos ciclos do:', datos_ciclo_do(tipo_num,2), datos_ciclo_do(tipo_num,3)
+        datos_ciclodo_if1(4,1) = tam_filacu; datos_ciclodo_if1(4,2) = fila; datos_ciclodo_if1(4,4) = paso_fila;
 
+        datos_ciclodo_if1(5,1) = tam_diam; datos_ciclodo_if1(5,2) = diam;  datos_ciclodo_if1(5,4) = paso_diam;
 
-!         if (tipo_num == 1.or.tipo_num == 2.or.tipo_num == 3) then !completo
-!             cont=0
-!             do j = datos_ciclo_do(tipo_num,2), datos_ciclo_do(tipo_num,3),datos_ciclo_do(tipo_num,4)
-!             cont=cont+1
-!             arr_y(cont) = real(j,dp)*sdi/real(datos_esp%np, dp)
-!             end do
-!         else if (tipo_num == 4.or.tipo_num==5) then !fila cualqu
-!             j=datos_ciclo_do(tipo_num,2)
-!             arr_y(1)=real(j,dp)
-!         endif
+        print*, datos_ciclodo_if1(tipo_num,:)
+    end subroutine datos_if1
 
-!         tam_pupila=0
+    subroutine datos_if2()
+        implicit none
+        character(len=7) :: tipo
+        integer :: i
+        tipo_if2(1,1) = 'birbin'; tipo_if2(1,2) = 'bircos'; tipo_if2(1,3) = 'ronbinx'
+        tipo_if2(1,4) = 'roncosx'; tipo_if2(1,5) = 'ronbiny'; tipo_if2(1,6) = 'roncosy'
+        tipo_if2(1,7) = 'perbinx'; tipo_if2(1,8) = 'percosy'
+        tipo_if2(2,1) = '1'; tipo_if2(2,2) = '2'; tipo_if2(2,3) = '3'; tipo_if2(2,4) = '4'; 
+        tipo_if2(2,5) = '5'; tipo_if2(2,6) = '6'; tipo_if2(2,7) = '7'; tipo_if2(2,8) = '8'
 
-!         ! write(10,*) "size(arr_x), size(arr_y)", size(arr_x), size(arr_y)
+        write(*,*) 'Ellige uno:'
+        write(*,*) tipo_if2(1,:)
+        read(*,*) tipo
 
-!         do i = 1, size(arr_x)
-!         do j = 1, size(arr_y)
-!             if(dist(arr_x(i),arr_y(j))<=sdi) then 
-!                 tam_pupila = tam_pupila+1
-!             endif
-!         enddo
-!         enddo
+        do i = 1, 8
+            if (tipo_if2(1,i)==tipo) then
+                read(tipo_if2(2,i),*) tipo_numif2
+                exit
+            endif
+        end do
 
-!         print*, 'tamaño pupila', tam_pupila
+        print*, 'Numero asociado:', tipo_numif2
+    end subroutine datos_if2
 
-!     end subroutine ciclo_do
+    subroutine if1()
+        implicit none
+        integer :: i,j,cont
 
-!     !filtrar pupila, nuevo tamaño
-!     subroutine arreglo_pupila()
-!         implicit none
-!         ! type1, intent(in) :: arg1
-!         ! type2, intent(out) ::  arg2
-!         integer :: i,j, cont
+        cont=0
+        do i = -datos_esp%np, datos_esp%np
+            cont=cont+1
+            arr_x(cont) = real(i,dp)*sdi/real(datos_esp%np, dp)
+        end do
 
-!         cont=0
+        if (tipo_num == 1.or.tipo_num == 2.or.tipo_num == 3) then !más de una fila
+            cont=0
+            do j = datos_ciclodo_if1(tipo_num,2), datos_ciclodo_if1(tipo_num,3),datos_ciclodo_if1(tipo_num,4)
+            cont=cont+1
+            arr_y(cont) = real(j,dp)*sdi/real(datos_esp%np, dp)
+            end do
+        else if (tipo_num == 4.or.tipo_num==5) then !fila cualqu
+            j=datos_ciclodo_if1(tipo_num,2)
+            arr_y(1)=real(j,dp)
+        endif
 
-!         do i = 1, size(arr_x)
-!         do j = 1, size(arr_y)
-!             if(dist(arr_x(i),arr_y(j))<=sdi) then
-!                 cont=cont+1
-!                 arr_xy(1,cont) = arr_x(i)
-!                 arr_xy(2,cont) = arr_y(j)
-!             endif
-!         enddo
-!         enddo
-        
-!     end subroutine arreglo_pupila
+        write(*,*) "size(arr_x), size(arr_y)", size(arr_x), size(arr_y)
+
+    end subroutine if1
     
-!     !comun calculos
+    subroutine if2(pupilax,pupilay)
+        real(dp), intent(in) :: pupilax,pupilay
+        real(dp) :: txron,tyron,argx,argy
+        integer, parameter :: arch = 40
 
-!     subroutine calculos_comunes(pupilax,pupilay)
-!         real(dp), intent(in) :: pupilax,pupilay
-!         real(dp) :: txron,tyron,argx,argy
-!         integer, parameter :: arch = 40
+        x=pupilax ; y=pupilay;
 
-!         x=pupilax ; y=pupilay;
+        numx0= num(x,y,zx,zy,datos_esp%alfa,datos_esp%beta,z)
+        numy0= num(y,x,zy,zx,datos_esp%beta,datos_esp%alfa,z)
 
-!         numx0= num(x,y,zx,zy,datos_esp%alfa,datos_esp%beta,z)
-!         numy0= num(y,x,zy,zx,datos_esp%beta,datos_esp%alfa,z)
+        if (tipo_numif2==1.or.tipo_numif2==2) then !if ( "bironchigrama" == 'bironchigrama' ) then
+            numy0= num(y,x,zy,zx,datos_esp%beta,datos_esp%alfa,z)
+            tx = aberracion_t(x,datos_esp%z0,z,numx0,deno)
+            ty = aberracion_t(y,datos_esp%z0,z,numy0,deno)
 
-!         if ( tipo_num==1.or.tipo_num==2 ) then !if ( "bironchigrama" == 'bironchigrama' ) then
-!             numy0= num(y,x,zy,zx,datos_esp%beta,datos_esp%alfa,z)
-!             tx = aberracion_t(x,datos_esp%z0,z,numx0,deno)
-!             ty = aberracion_t(y,datos_esp%z0,z,numy0,deno)
+            argx = (2.0_dp*pi*tx)/delta
+            argy = (2.0_dp*pi*ty)/delta
 
-!             argx = (2.0_dp*pi*tx)/delta
-!             argy = (2.0_dp*pi*ty)/delta
-
-!             txron = aberracion_t(x,z_max,z,numx0,deno)
-!             tyron = aberracion_t(y,z_max,z,numy0,deno)
+            txron = aberracion_t(x,z_max,z,numx0,deno)
+            tyron = aberracion_t(y,z_max,z,numy0,deno)
             
-!             if ( tipo_num==1  ) then
+            if ( tipo_numif2==1  ) then
 
-!                 if(cos(argx)>=0.and.cos(argy)>=0) then
-!                     write(arch,*) txron, tyron
-!                 endif
+                if(cos(argx)>=0.and.cos(argy)>=0) then
+                    write(arch,*) txron, tyron
+                endif
 
-!             else if ( tipo_num==2  ) then
-!                 write(arch,*) txron,tyron,(cos(argx)+1)/4 + (cos(argy)+1)/4
-!             end if  
+            else if ( tipo_numif2==2  ) then
+                write(arch,*) txron,tyron,(cos(argx)+1)/4 + (cos(argy)+1)/4
+            end if  
         
-!         else if (tipo_num==3.or.tipo_num==4 ) then!else if ("ronchigrama vertical x" == 'ronchigrama') then
-!             numy0= num(y,x,zy,zx,datos_esp%beta,datos_esp%alfa,z)
-!             tx = aberracion_t(x,datos_esp%z0,z,numx0,deno)
-!             argx = (2.0_dp*pi*tx)/delta
+        else if (tipo_numif2==3.or.tipo_numif2==4 ) then!else if ("ronchigrama vertical x" == 'ronchigrama') then
+            numy0= num(y,x,zy,zx,datos_esp%beta,datos_esp%alfa,z)
+            tx = aberracion_t(x,datos_esp%z0,z,numx0,deno)
+            argx = (2.0_dp*pi*tx)/delta
 
-!             if ( tipo_num==3  ) then
-!                 if(cos(argx)>=0.0_dp) then
-!                     txron = aberracion_t(x,z_max,z,numx0,deno)
-!                     tyron = aberracion_t(y,z_max,z,numy0,deno)
-!                     write(arch,*) txron, tyron
-!                 endif
-!             else if ( tipo_num==4  ) then
-!                 txron = aberracion_t(x,z_max,z,numx0,deno)
-!                 tyron = aberracion_t(y,z_max,z,numy0,deno)
-!                 write(arch,*) txron, tyron, (cos(argx)+1)/2
-!             end if  
-!         else if (tipo_num==5.or.tipo_num==6) then!else if ("ronchigrama horizontal y" == 'ronchigrama') then
-!             numy0= num(y,x,zy,zx,datos_esp%beta,datos_esp%alfa,z)
-!             ty = aberracion_t(y,datos_esp%z0,z,numy0,deno)
-!             argy = (2.0_dp*pi*ty)/delta
+            if ( tipo_numif2==3  ) then
+                if(cos(argx)>=0.0_dp) then
+                    txron = aberracion_t(x,z_max,z,numx0,deno)
+                    tyron = aberracion_t(y,z_max,z,numy0,deno)
+                    write(arch,*) txron, tyron
+                endif
+            else if ( tipo_numif2==4  ) then
+                txron = aberracion_t(x,z_max,z,numx0,deno)
+                tyron = aberracion_t(y,z_max,z,numy0,deno)
+                write(arch,*) txron, tyron, (cos(argx)+1)/2
+            end if  
+        else if (tipo_numif2==5.or.tipo_numif2==6) then!else if ("ronchigrama horizontal y" == 'ronchigrama') then
+            numy0= num(y,x,zy,zx,datos_esp%beta,datos_esp%alfa,z)
+            ty = aberracion_t(y,datos_esp%z0,z,numy0,deno)
+            argy = (2.0_dp*pi*ty)/delta
 
-!             if ( tipo_num==5  ) then
+            if ( tipo_numif2==5  ) then
 
-!                 if(cos(argy)>=0.0_dp) then
-!                     txron = aberracion_t(x,z_max,z,numx0,deno)
-!                     tyron = aberracion_t(y,z_max,z,numy0,deno)
-!                     write(arch,*) txron, tyron
-!                 endif
+                if(cos(argy)>=0.0_dp) then
+                    txron = aberracion_t(x,z_max,z,numx0,deno)
+                    tyron = aberracion_t(y,z_max,z,numy0,deno)
+                    write(arch,*) txron, tyron
+                endif
 
-!             else if ( tipo_num==6  ) then
-!                 txron = aberracion_t(x,z_max,z,numx0,deno)
-!                 tyron = aberracion_t(y,z_max,z,numy0,deno)
-!                 write(arch,*) txron, tyron, (cos(argy)+1)/2
-!             end if  
-!         else if (tipo_num==7.or.tipo_num==8) then!else if perfil de fila
+            else if ( tipo_numif2==6  ) then
+                txron = aberracion_t(x,z_max,z,numx0,deno)
+                tyron = aberracion_t(y,z_max,z,numy0,deno)
+                write(arch,*) txron, tyron, (cos(argy)+1)/2
+            end if  
+        else if ((tipo_num==4.or.tipo_num==5).and.(tipo_numif2==7.or.tipo_numif2==8)) then!else if perfil de fila
             
-!             tx = aberracion_t(x,datos_esp%z0,z,numx0,deno)
-!             argx = (2.0_dp*pi*tx)/delta
+            tx = aberracion_t(x,datos_esp%z0,z,numx0,deno)
+            argx = (2.0_dp*pi*tx)/delta
 
-!             if ( tipo_num==7  ) then
-!                 txron = aberracion_t(x,z_max,z,numx0,deno)
-!                 if(cos(argx)>=0.0_dp) then                    
-!                     write(arch,*) txron, 0.0_dp
-!                 else
-!                     write(arch,*) txron, 1.0_dp
-!                 endif
-!             else if ( tipo_num==8  ) then
-!                 txron = aberracion_t(x,z_max,z,numx0,deno)
-!                 write(arch,*) txron, (cos(argx)+1)/2
-!             end if   
-!         end if 
-!     end subroutine calculos_comunes
-! end module simulador
+            if ( tipo_numif2==7  ) then
+                txron = aberracion_t(x,z_max,z,numx0,deno)
+                if(cos(argx)>=0.0_dp) then                    
+                    write(arch,*) txron, 0.0_dp
+                else
+                    write(arch,*) txron, 1.0_dp
+                endif
+            else if ( tipo_numif2==8  ) then
+                txron = aberracion_t(x,z_max,z,numx0,deno)
+                write(arch,*) txron, (cos(argx)+1)/2
+            end if   
+        end if 
+    end subroutine if2
+end module calculos_ronchigrama

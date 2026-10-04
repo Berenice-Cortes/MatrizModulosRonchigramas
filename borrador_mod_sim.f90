@@ -18,8 +18,6 @@ module variables
     type(parametros_espejo) :: datos_esp
 contains
 end module variables
-
-
     
 ! module calculos_ronchigrama
 !     ! use variables
