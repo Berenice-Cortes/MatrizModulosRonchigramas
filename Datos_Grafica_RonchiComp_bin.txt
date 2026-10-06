@@ -1,0 +1,7 @@
+ set term qt
+ set xlabel "eje x (cm)"
+ set ylabel "eje y (cm)"
+ set size ratio 1
+ set title "z_0=  0.00000000, k=  0.00000000 y rc=    0.00000000"
+ set grid
+ plot "ronchigrama_comp_bin.txt" ls 0 lc 16 notitle
