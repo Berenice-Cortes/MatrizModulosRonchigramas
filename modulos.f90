@@ -427,22 +427,195 @@ contains
     end subroutine editar
 end module inicios
 
-module calculos_ronchigrama
+module graficos
     use utiles
+    implicit none
+
+contains
+
+
+    ! =========================================================================
+    ! SUBRUTINA 1: VISUALIZACIÓN INTERACTIVA EN PANTALLA
+    ! =========================================================================
+    subroutine graficas_interactivas(tipo_grafica,nombre, sigma)
+        implicit none
+        integer, intent(in)            :: tipo_grafica  ! 1: comparacion, 2: fila, 3: comp_bin, 4: comp_cos, 5: gaussiano
+        character(len=72), intent(in)  :: nombre
+        real(dp), intent(in), optional :: sigma
+        character(len=72)              :: Valor_rc_str, Valor_k_str, Valor_z_str, sigma_str
+        character(len=260)             :: archivo_script, linea_plot, titulo
+        character(len=80)              :: xlabel, ylabel
+        logical                        :: usar_ratio
+
+        usar_ratio = .true.
+        archivo_script = 'script_interactivo.gp'
+
+        ! Formateo numérico
+        write(Valor_rc_str, '(F14.8)') datos_esp%rc
+        write(Valor_k_str,  '(F12.8)') datos_esp%k    
+        write(Valor_z_str,  '(F12.8)') datos_esp%z0
+
+        select case (tipo_grafica)
+        case (1) ! ==== COMPLETO BIN ==== 
+            xlabel     = '"eje x (cm)"'
+            ylabel     = '"eje y (cm)"'
+            titulo     = '"z_0='//trim(adjustl(Valor_z_str))//', k='//trim(adjustl(Valor_k_str))// &
+                         ' y rc='//trim(adjustl(Valor_rc_str))//'"'
+            linea_plot = 'plot "'//trim(nombre)//'.txt" ls 0 lc 16 notitle'
+
+        case (2) ! ==== COMPLETO COS ====
+            xlabel     = '"eje x (cm)"'
+            ylabel     = '"eje y (cm)"'
+            titulo     = '"z_0='//trim(adjustl(Valor_z_str))//', k='//trim(adjustl(Valor_k_str))// &
+                         ' y rc='//trim(adjustl(Valor_rc_str))//'"'
+            linea_plot = 'plot "'//trim(nombre)//'.txt" using 1:2:3 with points palette pt 7 ps 1 notitle'
+
+        case (3) ! ==== FILA ====
+            xlabel     = '"eje pixeles (cm)"'
+            ylabel     = '"eje irradiancia (escala de grises)"'
+            titulo     = '"z_0='//trim(adjustl(Valor_z_str))//', k='//trim(adjustl(Valor_k_str))// &
+                         ' y rc='//trim(adjustl(Valor_rc_str))//'"'
+            linea_plot = 'plot "'//trim(nombre)//'.txt" with lines notitle'
+            usar_ratio = .false.
+
+        case (4) ! ==== COMPARACIÓN ====
+            xlabel     = '"eje pixeles (cm)"'
+            ylabel     = '"eje irradiancia (escala de grises)"'
+            usar_ratio = .false.
+            titulo     = '"Comparación z_0='//trim(adjustl(Valor_z_str))//': sim1 desc, sim2 k='// &
+                         trim(adjustl(Valor_k_str))//' y rc='//trim(adjustl(Valor_rc_str))//'"'
+            linea_plot = 'plot "sim1.txt" using 1:2 with lines title "sim1", "sim2.txt" using 1:2 with lines title "sim2"'
+
+        case (5) ! ==== FILTRO GAUSSIANO ====
+            xlabel     = '"eje x"'
+            ylabel     = '"irradiancia"'
+            usar_ratio = .false.
+            if (present(sigma)) then
+                write(sigma_str, '(F12.6)') sigma
+            else
+                sigma_str = 'N/A'
+            end if
+            titulo     = '"Filtro gaussiano sigma=' // trim(adjustl(sigma_str)) // '"'
+            linea_plot = 'plot "gaussian_filtered.txt" u 1:2 w l t "orig", "gaussian_filtered.txt" u 1:3 w l t "filt"'
+
+        case default
+            print *, "Error: Tipo de gráfica interactiva no válido."
+            return
+        end select
+
+        ! Escritura del script gnuplot
+        open(unit=30, file=trim(archivo_script), status='replace')
+            write(30,*) 'set term qt font "Sans,10"'
+            write(30,*) 'set xlabel ', trim(xlabel)
+            write(30,*) 'set ylabel ', trim(ylabel)
+            write(30,*) 'set grid'
+            if (usar_ratio) write(30,*) 'set size ratio 1'
+            write(30,*) 'set title ', trim(titulo)
+            write(30,*) trim(linea_plot)
+        close(30)
+
+        call system('gnuplot -p ' // trim(archivo_script))
+    end subroutine graficas_interactivas
+
+
+    ! =========================================================================
+    ! SUBRUTINA 2: GENERACIÓN Y EXPORTACIÓN DE PNG EN CARPETA
+    ! =========================================================================
+    subroutine generar_png(tipo_png, nombre_archivo, ruta_carpeta)
+        implicit none
+        integer, intent(in)                     :: tipo_png         ! 1: binario, 2: continuo cos
+        character(len=72), intent(in)           :: nombre_archivo   ! Nombre sin extensión (ej. 'ronchi_out')
+        character(len=*), intent(in), optional  :: ruta_carpeta     ! Carpeta destino (ej. 'salida' o 'plantillas')
+        character(len=72)                       :: Valor_rc_str, Valor_k_str, Valor_z_str
+        character(len=300)                      :: carpeta_dest, archivo_salida_png, archivo_script, linea_plot, titulo
+        character(len=80)                       :: xlabel, ylabel
+        character(len=76)                       :: nombre_con_extension
+        logical                                 :: usar_ratio
+
+        usar_ratio = .true.
+
+        ! Carpeta y nombre por defecto
+        if (present(ruta_carpeta)) then
+            carpeta_dest = trim(ruta_carpeta)
+        else
+            carpeta_dest = 'salida'
+        end if
+
+        archivo_salida_png = trim(carpeta_dest) // '/' // trim(nombre_archivo) // '.png'
+        archivo_script = trim(carpeta_dest) // '/script_export_png.gp'
+        nombre_con_extension = trim(nombre_archivo) // '.txt'
+
+        ! Formateo numérico
+        write(Valor_rc_str, '(F14.8)') datos_esp%rc
+        write(Valor_k_str,  '(F12.8)') datos_esp%k    
+        write(Valor_z_str,  '(F12.8)') datos_esp%z0
+
+        titulo = '"z_0='//trim(adjustl(Valor_z_str))//', k='//trim(adjustl(Valor_k_str))// &
+                 ' y rc='//trim(adjustl(Valor_rc_str))//'"'
+
+        select case (tipo_png)
+        case (1) ! ==== PNG COMPLETO BINARIO ====
+            linea_plot = 'plot "'//trim(adjustl(nombre_con_extension))//'" ls 0 lc 16 notitle'
+
+        case (2) ! ==== PNG COMPLETO COS ====
+            linea_plot = 'plot "'//trim(adjustl(nombre_con_extension))//'" using 1:2:3 with points palette pt 7 ps 1 notitle'
+
+        case (3) ! ==== FILA PNG ====
+            xlabel     = '"eje pixeles (cm)"'
+            ylabel     = '"eje irradiancia (escala de grises)"'
+            linea_plot = 'plot "'//trim(adjustl(nombre_con_extension))//'" with lines notitle'
+            usar_ratio = .false.
+
+        case (4) ! ==== COMPARACIÓN ====
+            xlabel     = '"eje pixeles (cm)"'
+            ylabel     = '"eje irradiancia (escala de grises)"'
+            linea_plot = 'plot "sim1.txt" using 1:2 with lines title "sim1", "sim2.txt" using 1:2 with lines title "sim2"'
+            usar_ratio = .false.
+
+        case default
+            print *, "Error: Tipo de PNG no válido."
+            return
+        end select
+
+        ! Escritura del script de renderizado PNG
+        open(unit=30, file=trim(archivo_script), status='replace')
+            write(30,*) 'set terminal pngcairo size 800,800 background "white"'
+            write(30,*) 'set output "' // trim(archivo_salida_png) // '"'
+            write(30,*) 'set size ratio 1'
+            write(30,*) 'unset key'
+            write(30,*) 'unset tics'
+            write(30,*) 'unset border'
+            write(30,*) 'unset colorbox'
+            write(30,*) 'set palette gray'
+            write(30,*) 'set title ', trim(titulo)
+            write(30,*) trim(linea_plot)
+            ! Cierre del archivo de imagen para asegurar escritura en disco
+            write(30,*) 'set output'
+        close(30)
+
+        ! No requiere '-p' ya que no abre ventana interactiva
+        call system('gnuplot "' // trim(archivo_script) // '"')
+    end subroutine generar_png
+
+end module graficos
+
+module calculos_ronchigrama
+    use utiles; use graficos
     implicit none
     real(dp) ::  x, y, raiz,z,zx,zy,raiz_max,z_max,deno,numx0,numy0,tx,ty,tx_ron,ty_ron
     real(dp) :: sdi, delta, c
     character(len=20) :: tipo_if1(2,5)
     character(len=20) :: tipo_if2(2,8)
     character(len=3) :: tipo_rejilla
-    integer :: datos_ciclodo_if1(5,4), tipo_num, tipo_numif2
+    integer :: datos_ciclodo_if1(5,4), tipo_num, tipo_numif2, tipo_numif3
     real(dp), allocatable :: arr_x(:), arr_y(:)
 
 contains
 
-    subroutine simulacion_png(nombre_puntos_ronchigrama)
+    subroutine simulacion_png(nombre_archivo_puntos_ronchigrama)
         implicit none
-        character(len=72), intent(in) :: nombre_puntos_ronchigrama
+        character(len=72), intent(in) :: nombre_archivo_puntos_ronchigrama
+        character(len=76) :: nombre_con_extension
         integer :: i, j
 
         call leer_datos
@@ -453,7 +626,9 @@ contains
         call if1
         call datos_if2
 
-        open(40,file=nombre_puntos_ronchigrama,status='replace')
+        nombre_con_extension = trim(nombre_archivo_puntos_ronchigrama)//'.txt'
+
+        open(40,file=nombre_con_extension,status='replace')
             do i = 1, size(arr_x)
             do j = 1, size(arr_y)
                 if(dist(arr_x(i),arr_y(j)) <= sdi) then 
@@ -463,6 +638,19 @@ contains
             enddo
             enddo
         close(40)
+
+        if (tipo_num==4.or.tipo_num==5) then
+            tipo_numif3 = 3
+        else if ( tipo_numif2==1.or.tipo_numif2==3.or.tipo_numif2==5 ) then
+            tipo_numif3 = 1
+        else if ( tipo_numif2==2.or.tipo_numif2==4.or.tipo_numif2==6 ) then
+            tipo_numif3 = 2
+        end if
+
+        print*, 'Tipo numero 3', tipo_numif3
+
+        call graficas_interactivas(tipo_numif3,nombre_archivo_puntos_ronchigrama)
+        call generar_png(tipo_numif3,nombre_archivo_puntos_ronchigrama)
 
     end subroutine simulacion_png
 
@@ -551,7 +739,7 @@ contains
         implicit none
         datos_esp%di = 14.0_dp; datos_esp%nlp = 50.0_dp; datos_esp%z0= 99.5_dp
         datos_esp%alfa = 0.0_dp; datos_esp%beta = 0.0_dp; datos_esp%gamma= 99.5_dp
-        datos_esp%phi=0.0_dp; datos_esp%np= 100; datos_esp%rc=100.0_dp; datos_esp%k =-1.80_dp
+        datos_esp%phi=0.0_dp; datos_esp%np= 50; datos_esp%rc=100.0_dp; datos_esp%k =-1.80_dp
     end subroutine leer_datos
 
     subroutine ctes_sim()
@@ -589,13 +777,13 @@ contains
         tam_filacu = 1; fila = -2; paso_fila = 1
         tam_diam = 1; diam = 0; paso_diam = 1
 
-        datos_ciclodo_if1(1,1) = tam_compl; datos_ciclodo_if1(1,2) = lim_arr1; datos_ciclodo_if1(1,3) = lim_abj1; 
+        datos_ciclodo_if1(1,1) = tam_compl; datos_ciclodo_if1(1,2) = lim_abj1; datos_ciclodo_if1(1,3) = lim_arr1; 
         datos_ciclodo_if1(1,4) = paso_comp;
 
-        datos_ciclodo_if1(2,1) = tam_fransi; datos_ciclodo_if1(2,2) = lim_arr2; datos_ciclodo_if1(2,3) = lim_abj2; 
+        datos_ciclodo_if1(2,1) = tam_fransi; datos_ciclodo_if1(2,2) = lim_abj2; datos_ciclodo_if1(2,3) = lim_arr2; 
         datos_ciclodo_if1(2,4) = paso_fransi;
 
-        datos_ciclodo_if1(3,1) = tam_filacu; datos_ciclodo_if1(3,2) = lim_arr3; datos_ciclodo_if1(3,3) = lim_abj3; 
+        datos_ciclodo_if1(3,1) = tam_filacu; datos_ciclodo_if1(3,2) = lim_abj3; datos_ciclodo_if1(3,3) = lim_arr3; 
         datos_ciclodo_if1(3,4) = paso_fransi;
 
         datos_ciclodo_if1(4,1) = tam_filacu; datos_ciclodo_if1(4,2) = fila; datos_ciclodo_if1(4,4) = paso_fila;
@@ -609,9 +797,9 @@ contains
         implicit none
         character(len=7) :: tipo
         integer :: i
-        tipo_if2(1,1) = 'birbin'; tipo_if2(1,2) = 'bircos'; tipo_if2(1,3) = 'ronbinx'
-        tipo_if2(1,4) = 'roncosx'; tipo_if2(1,5) = 'ronbiny'; tipo_if2(1,6) = 'roncosy'
-        tipo_if2(1,7) = 'perbinx'; tipo_if2(1,8) = 'percosy'
+        tipo_if2(1,1) = 'birbin'; tipo_if2(1,2) = 'bircos'; tipo_if2(1,3) = 'ronxbin'
+        tipo_if2(1,4) = 'ronxcos'; tipo_if2(1,5) = 'ronybin'; tipo_if2(1,6) = 'ronycos'
+        tipo_if2(1,7) = 'perxbin'; tipo_if2(1,8) = 'perxcos'
         tipo_if2(2,1) = '1'; tipo_if2(2,2) = '2'; tipo_if2(2,3) = '3'; tipo_if2(2,4) = '4'; 
         tipo_if2(2,5) = '5'; tipo_if2(2,6) = '6'; tipo_if2(2,7) = '7'; tipo_if2(2,8) = '8'
 
@@ -663,9 +851,24 @@ contains
 
         numx0= num(x,y,zx,zy,datos_esp%alfa,datos_esp%beta,z)
         numy0= num(y,x,zy,zx,datos_esp%beta,datos_esp%alfa,z)
+        ! print*, 'x', x
 
-        if (tipo_numif2==1.or.tipo_numif2==2) then !if ( "bironchigrama" == 'bironchigrama' ) then
-            numy0= num(y,x,zy,zx,datos_esp%beta,datos_esp%alfa,z)
+        if ((tipo_num==4.or.tipo_num==5).and.(tipo_numif2==7.or.tipo_numif2==8)) then!else if perfil de fila
+            tx = aberracion_t(x,datos_esp%z0,z,numx0,deno)
+            argx = (2.0_dp*pi*tx)/delta
+
+            if ( tipo_numif2==7  ) then
+                txron = aberracion_t(x,z_max,z,numx0,deno)
+                if(cos(argx)>=0.0_dp) then                    
+                    write(arch,*) txron, 0.0_dp
+                else
+                    write(arch,*) txron, 1.0_dp
+                endif
+            else if ( tipo_numif2==8  ) then
+                txron = aberracion_t(x,z_max,z,numx0,deno)
+                write(arch,*) txron, (cos(argx)+1)/2
+            end if  
+        else if (tipo_numif2==1.or.tipo_numif2==2) then !if ( "bironchigrama" == 'bironchigrama' ) then
             tx = aberracion_t(x,datos_esp%z0,z,numx0,deno)
             ty = aberracion_t(y,datos_esp%z0,z,numy0,deno)
 
@@ -686,7 +889,6 @@ contains
             end if  
         
         else if (tipo_numif2==3.or.tipo_numif2==4 ) then!else if ("ronchigrama vertical x" == 'ronchigrama') then
-            numy0= num(y,x,zy,zx,datos_esp%beta,datos_esp%alfa,z)
             tx = aberracion_t(x,datos_esp%z0,z,numx0,deno)
             argx = (2.0_dp*pi*tx)/delta
 
@@ -702,7 +904,6 @@ contains
                 write(arch,*) txron, tyron, (cos(argx)+1)/2
             end if  
         else if (tipo_numif2==5.or.tipo_numif2==6) then!else if ("ronchigrama horizontal y" == 'ronchigrama') then
-            numy0= num(y,x,zy,zx,datos_esp%beta,datos_esp%alfa,z)
             ty = aberracion_t(y,datos_esp%z0,z,numy0,deno)
             argy = (2.0_dp*pi*ty)/delta
 
@@ -718,22 +919,6 @@ contains
                 txron = aberracion_t(x,z_max,z,numx0,deno)
                 tyron = aberracion_t(y,z_max,z,numy0,deno)
                 write(arch,*) txron, tyron, (cos(argy)+1)/2
-            end if  
-        else if ((tipo_num==4.or.tipo_num==5).and.(tipo_numif2==7.or.tipo_numif2==8)) then!else if perfil de fila
-            
-            tx = aberracion_t(x,datos_esp%z0,z,numx0,deno)
-            argx = (2.0_dp*pi*tx)/delta
-
-            if ( tipo_numif2==7  ) then
-                txron = aberracion_t(x,z_max,z,numx0,deno)
-                if(cos(argx)>=0.0_dp) then                    
-                    write(arch,*) txron, 0.0_dp
-                else
-                    write(arch,*) txron, 1.0_dp
-                endif
-            else if ( tipo_numif2==8  ) then
-                txron = aberracion_t(x,z_max,z,numx0,deno)
-                write(arch,*) txron, (cos(argx)+1)/2
             end if   
         end if 
     end subroutine if2
