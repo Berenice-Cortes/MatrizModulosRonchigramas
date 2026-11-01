@@ -1,53 +1,12 @@
 program name
-    use calculos_ronchigrama
+    use modulo_borrador
     implicit none
     character(len=72) :: nombre_txt
 
-    nombre_txt = 'ronxcos_diam'
+    nombre_txt = 'Salida/ronxcos_diam'
 
-    call simulacion_png(nombre_txt)
-
+    call simulacion_grafica(nombre_txt)
 end program name
-
-! program name
-!     use modulo_borrador
-!     implicit none
-!     character(len=72) :: nombre_txt
-
-!     nombre_txt = 'bircos'
-
-!     call prueba(nombre_txt)
-
-! end program name
-
-module modulo_borrador
-    implicit none
-    
-contains
-
-    subroutine prueba(nombre_archivo_puntos_ronchigrama)
-        use calculos_ronchigrama; use borr_graficos
-        implicit none
-        character(len=72), intent(in) :: nombre_archivo_puntos_ronchigrama
-
-        call simulacion_png(nombre_archivo_puntos_ronchigrama)
-
-        if (tipo_num==4.or.tipo_num==5) then
-            tipo_numif3 = 3
-        else if ( tipo_numif2==1.or.tipo_numif2==3.or.tipo_numif2==5 ) then
-            tipo_numif3 = 1
-        else if ( tipo_numif2==2.or.tipo_numif2==4.or.tipo_numif2==6 ) then
-            tipo_numif3 = 2
-        end if
-
-        print*, 'Tipo numero 3', tipo_numif3
-
-        ! call borr_graficas_interactivas(tipo_numif3,nombre_archivo_puntos_ronchigrama)
-        call borr_generar_png(tipo_numif3,nombre_archivo_puntos_ronchigrama)
-        
-    end subroutine prueba
-    
-end module modulo_borrador
 
 module borr_graficos
     use utiles
@@ -221,488 +180,59 @@ contains
 
 end module borr_graficos
 
-! module graficos
-!     use utiles
-!     implicit none
+module modulo_borrador
+    use calculos_ronchigrama
+    use borr_graficos
+    implicit none
     
-! contains
-
-!     subroutine graficas(tipo_grafica,sigma)
-!         implicit none
-!         integer, intent(in)  :: tipo_grafica ! 1: comparacion, 2: fila, 3: completo, 4: gaussiano
-!         character(len=72)  :: Valor_rc_str, Valor_k_str, Valor_z_str, sigma_str
-!         real(dp), intent(in), optional :: sigma ! Obligatorio solo si tipo_grafica == 4
-!         character(len=150) :: archivo_script, linea_plot, titulo
-!         character(len=50)  :: xlabel, ylabel
-!         logical            :: usar_ratio
-
-!         ! Por defecto, la mayoría usa ratio 1, lo desactivamos si es necesario
-!         usar_ratio = .true.
-
-!         !1. Formatear los números a cadenas de texto de forma común
-!         write(Valor_rc_str, '(F14.8)') datos_esp%rc
-!         write(Valor_k_str, '(F12.8)') datos_esp%k    
-!         write(Valor_z_str, '(F12.8)') datos_esp%z0
-
-!         ! linea_plot     = 'plot "ronchigrama_fila.txt"'
-
-!         ! 2. Configurar las variables específicas según el tipo seleccionado
-!         archivo_script = 'datos_gnuplot.txt' !trim(setup_global%rutas%base) //
-!         select case (tipo_grafica)
-!         case (1) ! ==== COMPARACION ====
-!             xlabel         = '"eje pixeles (cm)"'
-!             ylabel         = '"eje irradiancia (escala de grises)"'
-!             titulo         = '"Comparación z_0='//trim(Valor_z_str)//': sim1 desc, sim2 k='//trim(Valor_k_str)//' y rc='//trim(Valor_rc_str)//'"'
-!             linea_plot     = 'plot "sim1.txt" using 1:2 with lines title "sim1","sim2.txt" using 1:2 with lines'
-
-!         case (2) ! ==== FILA ====
-!             xlabel         = '"eje pixeles (cm)"'
-!             ylabel         = '"eje irradiancia (escala de grises)"'
-!             titulo         = '"z_0='//trim(Valor_z_str)//', k='//trim(Valor_k_str)//' y rc='//trim(Valor_rc_str)//'"'
-!             linea_plot     = 'plot "ronchigrama_fila.txt"'
-!             usar_ratio     = .false.
-
-!         case (3) ! ==== COMPLETO BIN ====
-!             xlabel         = '"eje x (cm)"'
-!             ylabel         = '"eje y (cm)"'
-!             titulo         = '"z_0='//trim(Valor_z_str)//', k='//trim(Valor_k_str)//' y rc='//trim(Valor_rc_str)//'"'
-!             linea_plot     = 'plot "ronchigrama_comp_bin.txt" ls 0 lc 16 notitle'
-
-!         case (4) ! ==== COMPLETO COS ====
-!             xlabel         = '"eje x (cm)"'
-!             ylabel         = '"eje y (cm)"'
-!             titulo         = '"z_0='//trim(Valor_z_str)//', k='//trim(Valor_k_str)//' y rc='//trim(Valor_rc_str)//'"'
-!             linea_plot     = 'plot "nombre.txt" using 1:2:3 with points palette pt 7 ps 1 notitle'
-
-!         case (5) ! ==== COMPLETO BIN ====
-!             titulo         = '"z_0='//trim(Valor_z_str)//', k='//trim(Valor_k_str)//' y rc='//trim(Valor_rc_str)//'"'
-!             ! linea_plot     = 'plot "ronchigrama_comp_bin.txt" ls 0 lc 16 notitle'
-
-!         case(6) ! ==== PNG COMPLETO COS ====
-!             titulo         = '"z_0='//trim(Valor_z_str)//', k='//trim(Valor_k_str)//' y rc='//trim(Valor_rc_str)//'"'
-!             ! linea_plot     = 'plot "Salida/birbin_comp.txt" ls 0 lc 16 notitle'
-!             linea_plot     = 'plot "Salida/roncosy_comp.txt" using 1:2:3 with points palette pt 7 ps 1 notitle'
-
-
-!         case (7) ! ==== FILTRO GAUSSIANO ====
-!             ! Nota: Se asume que usas las rutas unificadas de la estructura para los archivos,
-!             ! si no, puedes cambiar trim(setup_global%rutas%base) por tu variable de carpeta antigua.
-!             xlabel         = '"eje x"'
-!             ylabel         = '"irradiancia"'
-!             usar_ratio     = .false.
-            
-!             ! Validar si se proporcionó el parámetro sigma de manera segura
-!             if (present(sigma)) then
-!                 write(sigma_str, '(F12.6)') sigma
-!             else
-!                 sigma_str = 'N/A'
-!             end if
-!             titulo         = '"Filtro gaussiano sigma=' // trim(sigma_str) // '"'
-            
-!             ! linea_plot     = 'plot "' // trim(setup_global%rutas%base) // 'gaussian_filtered.txt" u 1:2 w l t "orig", ' // &
-!                             !  '"' // trim(setup_global%rutas%base) // 'gaussian_filtered.txt" u 1:3 w l t "filt"'
-
-!         case default
-!             print *, "Error: Tipo de gráfica no válido en generar_grafica."
-!             return
-!         end select
-
-!      ! 3. Escritura del archivo Gnuplot genérico
-!         open(unit=30, file=trim(archivo_script), status='replace')
-
-!             ! Terminal y salida
-!             if (tipo_grafica == 3) write(30,*) 'set term qt'
-!             if (tipo_grafica == 4) then
-!                 write(30,*) 'set terminal pngcairo size 800,800 background "white"'
-!                 write(30,*) 'set output "imagen_ronchi_simu.png"'
-!                 write(30,*) 'unset key'
-!                 write(30,*) 'unset tics'
-!                 write(30,*) 'unset border'
-!                 write(30,*) 'unset colorbox'
-!                 write(30,*) 'set palette gray'
-!             end if
-
-!             ! Configuración común de ejes y apariencia
-!             if (tipo_grafica /= 4) then
-!                 write(30,*) 'set xlabel ', trim(xlabel)
-!                 write(30,*) 'set ylabel ', trim(ylabel)
-!                 write(30,*) 'set grid'
-!             end if
-
-!             if (usar_ratio) write(30,*) 'set size ratio 1'
-!             write(30,*) 'set title ', trim(titulo)
-
-!             ! Renderizar el gráfico
-!             write(30,*) trim(linea_plot)
-
-!             ! Cerrar y vaciar el buffer del archivo PNG hacia el disco
-!             if (tipo_grafica == 4) write(30,*) 'set output'
-
-!         close(30)
-
-!      ! 4. Ejecución del script
-!         call system('gnuplot -p ' // trim(archivo_script))
-
-!     end subroutine graficas
-
-!     ! subroutine grafica_compar(rc,k)
-!     !     implicit none
-!     !     real(dp), intent(in) :: rc, k
-!     !     character(len=72) :: Valor_rc_str, Valor_k_str, Valor_z_str
-
-!     !     write(Valor_rc_str, '(F14.8)') rc; write(Valor_k_str, '(F12.8)') k    
-!     !     write(Valor_z_str, '(F12.8)') datos_esp%z0
-
-!     !     open(unit=30, file='salida/grafica_comp.txt', status='replace')
-!     !      write(30,*) 'set xlabel "eje pixeles (cm)"'
-!     !      write(30,*) 'set ylabel "eje irradiancia (escala de grises)"'
-!     !      write(30,*) 'set size ratio 1'
-!     !      write(30,*) 'set title "Comparación z_0='//trim(Valor_z_str)//': sim1 desc, sim2 k='//trim(Valor_k_str)//' y rc='//trim(Valor_rc_str)//'"'
-!     !      write(30,*) 'set grid'
-!     !      write(30,*) 'set grid'
-!     !      write(30,*) 'plot "salida/sim1.txt" using 1:2 with lines title "sim1","salida/sim2.txt" using 1:2 with lines'
-!     !     close(30)
-!     !   call system('gnuplot -p salida/grafica_comp.txt')
-!     ! endsubroutine grafica_compar
-
-!     ! subroutine grafica_fila(rc,k)
-!     !     implicit none
-!     !     real(dp), intent(in) :: rc, k
-!     !     character(len=72) :: Valor_rc_str, Valor_k_str, Valor_z_str
-
-!     !     write(Valor_rc_str, '(F14.8)') rc; write(Valor_k_str, '(F12.8)') k    
-!     !     write(Valor_z_str, '(F12.8)') datos_esp%z0
-
-!     !     open(unit=30, file='Datos_Grafica_Ronchi_Fila.txt', status='replace')
-!     !      write(30,*) 'set xlabel "eje pixeles (cm)"'
-!     !      write(30,*) 'set ylabel "eje irradiancia (escala de grises)"'
-!     !      write(30,*) 'set title "z_0='//trim(Valor_z_str)//', k='//trim(Valor_k_str)//' y rc='//trim(Valor_rc_str)//'"'
-!     !      write(30,*) 'set grid'
-!     !      write(30,*) 'plot "ronchigrama_fila.txt"'
-!     !     close(30)
-!     !     call system('gnuplot -p Datos_Grafica_Ronchi_Fila.txt')
-!     ! endsubroutine grafica_fila
-
-!     ! subroutine grafica_completo_bin(Valor_rc_str,Valor_k_str)
-!     !     implicit none
-!     !     character(len=72), intent(in) :: Valor_rc_str, Valor_k_str
-!     !     character(len=72) :: Valor_z_str
-!     !     character(len=200) :: texto_titulo
-        
-!     !     write(Valor_z_str, '(F12.8)') datos_esp%z0  
-        
-!     !     texto_titulo = 'set title "z_0=' // trim(adjustl(Valor_z_str)) //', k=' // trim(adjustl(Valor_k_str)) // &
-!     !     ' y rc=' // trim(adjustl(Valor_rc_str)) // '"'
-
-!     !     open(unit=30, file='salida/Datos_Grafica_RonchiComp.txt', status='replace')
-!     !      write(30,*) 'set term qt'
-!     !      write(30,*) 'set terminal qt font "Monaco,12"'
-!     !      write(30,*) 'set xlabel "eje x (cm)"'
-!     !      write(30,*) 'set ylabel "eje y (cm)"'
-!     !      write(30,*) 'set size ratio 1'
-!     !      write(30,*) trim(texto_titulo)
-!     !      write(30,*) 'set grid'
-!     !      write(30,*) 'plot "salida/ronchigrama_comp.txt" ls 0 lc 16 notitle'
-!     !     close(30)
-!     !     call system('gnuplot -p salida/Datos_Grafica_RonchiComp.txt')
-!     ! endsubroutine grafica_completo_bin
-
-!     ! subroutine grafica_gaussian()
-!     !     implicit none
-!     !     character(len=260) :: tit, comando, arch
-
-!     !     arch = trim(carpeta)//'/gaussian_filtered.txt'
-!     !     print*,"ARCHIVO", arch
-!     !     write(tit,'(a,f12.6)') 'filtro gaussiano sigma=', sigma
-        
-!     !     open(30, file=trim(carpeta)//'/graf_g.txt', status='replace')
-!     !      write(30,*) 'set title "'//trim(tit)//'"'
-!     !      write(30,*) 'set grid'
-!     !      write(30,*) 'plot "'//trim(arch)//'" u 1:2 w l t "orig", "'//trim(arch)//'" u 1:3 w l t "filt"'
-!     !     close(30)
-
-!     !     comando = 'gnuplot -p ' // trim(carpeta) // '/graf_g.txt'
-!     !     call system(comando)
-!     ! end subroutine grafica_gaussian
-
-!     ! subroutine png_bin(Valor_rc_str,Valor_k_str)
-!     !     implicit none
-!     !     character(len=72), intent(in) :: Valor_rc_str, Valor_k_str
-!     !     character(len=72) :: Valor_z_str
-!     !     character(len=200) :: texto_titulo,url_plantilla,archivo_datosgnuplot,comando_sistema
-        
-!     !     write(Valor_z_str, '(F12.8)') datos_esp%z0  
-        
-!     !     texto_titulo = 'set title "z_0=' // trim(adjustl(Valor_z_str)) //', k=' // trim(adjustl(Valor_k_str)) // &
-!     !     ' y rc=' // trim(adjustl(Valor_rc_str)) // '"'
-
-!     !     url_plantilla = '/Users/berenicecortes/Desktop/carpeta_de_carpetas_plantillas/espejoresumen8rc9581k-098'
-
-!     !     archivo_datosgnuplot= trim(url_plantilla)//'/Datos_PNG_RonchiComp.txt'
-
-!     !     open(unit=30, file=trim(archivo_datosgnuplot), status='replace')
-!     !         write(30,*) 'set terminal pngcairo size 800,800 background "white"'
-!     !         write(30,*) 'set output "'//trim(url_plantilla)//'/imagen_ronchi_simu.png"'
-!     !         write(30,*) 'set size ratio 1'
-!     !         write(30,*) trim(texto_titulo)
-!     !         ! Ocultar todos los elementos decorativos
-!     !         write(30,*) 'unset key'         ! Oculta la leyenda
-!     !         write(30,*) 'unset tics'        ! Oculta las marcas de graduación/números de los ejes
-!     !         write(30,*) 'unset border'      ! Oculta el recuadro exterior
-!     !         write(30,*) 'unset colorbox'    ! Oculta la barra de escala de color (paleta de grises)
-!     !         write(30,*) 'set palette gray'
-!     !         ! write(30,*) 'set lmargin 0'
-!     !         ! write(30,*) 'set rmargin 0'
-!     !         ! write(30,*) 'set tmargin 0'
-!     !         ! write(30,*) 'set bmargin 0'
-!     !         write(30,*) 'plot "salida/ronchigrama_comp.txt" ls 0 lc 16 notitle'
-!     !         write(30,*) 'set output'
-!     !     close(30)
-
-!     !     comando_sistema = 'gnuplot -p "' // trim(archivo_datosgnuplot) // '"'
-!     !     call system(trim(comando_sistema))
-!     ! endsubroutine png_bin
-
-!     ! subroutine grafica_completo_cos(Valor_rc_str,Valor_k_str)
-!     !     implicit none
-!     !     character(len=72), intent(in) :: Valor_rc_str, Valor_k_str
-!     !     character(len=72) :: Valor_z_str
-!     !     character(len=200) :: texto_titulo
-        
-!     !     write(Valor_z_str, '(F12.8)') datos_esp%z0  
-        
-!     !     texto_titulo = 'set title "z_0=' // trim(adjustl(Valor_z_str)) //', k=' // trim(adjustl(Valor_k_str)) // &
-!     !     ' y rc=' // trim(adjustl(Valor_rc_str)) // '"'
-
-!     !     open(unit=30, file='salida/Datos_Grafica_RonchiComp.txt', status='replace')
-!     !      write(30,*) 'set term qt'
-!     !      write(30,*) 'set terminal qt font "Monaco,12"'
-!     !      write(30,*) 'set xlabel "eje x (cm)"'
-!     !      write(30,*) 'set ylabel "eje y (cm)"'
-!     !      write(30,*) 'set size ratio 1'
-!     !      write(30,*) trim(texto_titulo)
-!     !      write(30,*) 'set grid'
-!     !      write(30,*) 'set palette gray'
-!     !      write(30,*) 'set cblabel "Intensidad (z)"'
-!     !      write(30,*) 'set colorbox'
-!     !      write(30,*) 'unset key'
-!     !      write(30,*) 'plot "salida/ronchigrama_comp.txt" using 1:2:3 with points palette pt 7 ps 1 notitle'
-!     !     close(30)
-!     !     call system('gnuplot -p salida/Datos_Grafica_RonchiComp.txt')
-!     ! endsubroutine grafica_completo_cos
-
-!     ! subroutine png_cos(Valor_rc_str,Valor_k_str)
-!     !     implicit none
-!     !     character(len=72), intent(in) :: Valor_rc_str, Valor_k_str
-!     !     character(len=72) :: Valor_z_str, name_image
-!     !     character(len=200) :: texto_titulo,archivo_datosgnuplot,comando_sistema
-        
-!     !     write(Valor_z_str, '(F12.8)') datos_esp%z0  
-        
-!     !     texto_titulo = 'set title "z_0=' // trim(adjustl(Valor_z_str)) //', k=' // trim(adjustl(Valor_k_str)) // &
-!     !     ' y rc=' // trim(adjustl(Valor_rc_str)) // '"'
-
-!     !     ! url_plantilla = '/Users/berenicecortes/Desktop/carpeta_de_carpetas_plantillas/espejoresumen8rc9581k-098'
-        
-!     !     open(unit=30, file=trim(ruta%rutaruta)//'/ruta.txt', status='old', action='read')
-!     !      read(30,'(A)') name_image
-!     !     close(30)
-
-!     !     archivo_datosgnuplot= trim(ruta%rutaruta)//'/Datos_PNG_RonchiComp.txt'
-
-!     !     open(unit=30, file=trim(archivo_datosgnuplot), status='replace')
-!     !         write(30,*) 'set terminal pngcairo size 800,800 background "white"'
-!     !         write(30,*) 'set output "'//trim(ruta%rutaruta)//'/'//trim(name_image)//'.png"'
-!     !         write(30,*) 'set size ratio 1'
-!     !         write(30,*) trim(texto_titulo)
-!     !         ! Ocultar todos los elementos decorativos
-!     !         write(30,*) 'unset key'         ! Oculta la leyenda
-!     !         write(30,*) 'unset tics'        ! Oculta las marcas de graduación/números de los ejes
-!     !         write(30,*) 'unset border'      ! Oculta el recuadro exterior
-!     !         write(30,*) 'unset colorbox'    ! Oculta la barra de escala de color (paleta de grises)
-!     !         write(30,*) 'set palette gray'
-!     !         ! write(30,*) 'set lmargin 0'
-!     !         ! write(30,*) 'set rmargin 0'
-!     !         ! write(30,*) 'set tmargin 0'
-!     !         ! write(30,*) 'set bmargin 0'
-!     !         write(30,*) 'plot "salida/ronchigrama_comp.txt" using 1:2:3 with points palette pt 7 ps 1 notitle'
-!     !         write(30,*) 'set output'
-!     !     close(30)
-
-!     !     comando_sistema = 'gnuplot -p "' // trim(archivo_datosgnuplot) // '"'
-!     !     call system(trim(comando_sistema))
-!     ! endsubroutine png_cos 
-! end module graficos
-
-
-
-! module graficos
-!     use utiles
-!     implicit none
-
-! contains
-
-!     ! =========================================================================
-!     ! SUBRUTINA 1: VISUALIZACIÓN INTERACTIVA EN PANTALLA
-!     ! =========================================================================
-!     subroutine graficas_interactivas(tipo_grafica,nombre, sigma)
-!         implicit none
-!         integer, intent(in)            :: tipo_grafica  ! 1: comparacion, 2: fila, 3: comp_bin, 4: comp_cos, 5: gaussiano
-!         character(len=72), intent(in)  :: nombre
-!         real(dp), intent(in), optional :: sigma
-!         character(len=72)              :: Valor_rc_str, Valor_k_str, Valor_z_str, sigma_str
-!         character(len=260)             :: archivo_script, linea_plot, titulo
-!         character(len=80)              :: xlabel, ylabel
-!         logical                        :: usar_ratio
-
-!         usar_ratio = .true.
-!         archivo_script = 'script_interactivo.gp'
-
-!         ! Formateo numérico
-!         write(Valor_rc_str, '(F14.8)') datos_esp%rc
-!         write(Valor_k_str,  '(F12.8)') datos_esp%k    
-!         write(Valor_z_str,  '(F12.8)') datos_esp%z0
-
-!         select case (tipo_grafica)
-!         case (1) ! ==== COMPLETO BIN ==== 
-!             xlabel     = '"eje x (cm)"'
-!             ylabel     = '"eje y (cm)"'
-!             titulo     = '"z_0='//trim(adjustl(Valor_z_str))//', k='//trim(adjustl(Valor_k_str))// &
-!                          ' y rc='//trim(adjustl(Valor_rc_str))//'"'
-!             linea_plot = 'plot "'//trim(nombre)//'.txt" ls 0 lc 16 notitle'
-
-!         case (2) ! ==== COMPLETO COS ====
-!             xlabel     = '"eje x (cm)"'
-!             ylabel     = '"eje y (cm)"'
-!             titulo     = '"z_0='//trim(adjustl(Valor_z_str))//', k='//trim(adjustl(Valor_k_str))// &
-!                          ' y rc='//trim(adjustl(Valor_rc_str))//'"'
-!             linea_plot = 'plot "'//trim(nombre)//'.txt" using 1:2:3 with points palette pt 7 ps 1 notitle'
-
-!         case (3) ! ==== FILA ====
-!             xlabel     = '"eje pixeles (cm)"'
-!             ylabel     = '"eje irradiancia (escala de grises)"'
-!             titulo     = '"z_0='//trim(adjustl(Valor_z_str))//', k='//trim(adjustl(Valor_k_str))// &
-!                          ' y rc='//trim(adjustl(Valor_rc_str))//'"'
-!             linea_plot = 'plot "'//trim(nombre)//'.txt" with lines notitle'
-!             usar_ratio = .false.
-
-!         case (4) ! ==== COMPARACIÓN ====
-!             xlabel     = '"eje pixeles (cm)"'
-!             ylabel     = '"eje irradiancia (escala de grises)"'
-!             usar_ratio = .false.
-!             titulo     = '"Comparación z_0='//trim(adjustl(Valor_z_str))//': sim1 desc, sim2 k='// &
-!                          trim(adjustl(Valor_k_str))//' y rc='//trim(adjustl(Valor_rc_str))//'"'
-!             linea_plot = 'plot "sim1.txt" using 1:2 with lines title "sim1", "sim2.txt" using 1:2 with lines title "sim2"'
-
-!         case (5) ! ==== FILTRO GAUSSIANO ====
-!             xlabel     = '"eje x"'
-!             ylabel     = '"irradiancia"'
-!             usar_ratio = .false.
-!             if (present(sigma)) then
-!                 write(sigma_str, '(F12.6)') sigma
-!             else
-!                 sigma_str = 'N/A'
-!             end if
-!             titulo     = '"Filtro gaussiano sigma=' // trim(adjustl(sigma_str)) // '"'
-!             linea_plot = 'plot "gaussian_filtered.txt" u 1:2 w l t "orig", "gaussian_filtered.txt" u 1:3 w l t "filt"'
-
-!         case default
-!             print *, "Error: Tipo de gráfica interactiva no válido."
-!             return
-!         end select
-
-!         ! Escritura del script gnuplot
-!         open(unit=30, file=trim(archivo_script), status='replace')
-!             write(30,*) 'set term qt font "Sans,10"'
-!             write(30,*) 'set xlabel ', trim(xlabel)
-!             write(30,*) 'set ylabel ', trim(ylabel)
-!             write(30,*) 'set grid'
-!             if (usar_ratio) write(30,*) 'set size ratio 1'
-!             write(30,*) 'set title ', trim(titulo)
-!             write(30,*) trim(linea_plot)
-!         close(30)
-
-!         call system('gnuplot -p ' // trim(archivo_script))
-!     end subroutine graficas_interactivas
-
-
-!     ! =========================================================================
-!     ! SUBRUTINA 2: GENERACIÓN Y EXPORTACIÓN DE PNG EN CARPETA
-!     ! =========================================================================
-!     subroutine generar_png(tipo_png, nombre_archivo, ruta_carpeta)
-!         implicit none
-!         integer, intent(in)                     :: tipo_png         ! 1: binario, 2: continuo cos
-!         character(len=72), intent(in)           :: nombre_archivo   ! Nombre sin extensión (ej. 'ronchi_out')
-!         character(len=*), intent(in), optional  :: ruta_carpeta     ! Carpeta destino (ej. 'salida' o 'plantillas')
-!         character(len=72)                       :: Valor_rc_str, Valor_k_str, Valor_z_str
-!         character(len=300)                      :: carpeta_dest, archivo_salida_png, archivo_script, linea_plot, titulo
-!         character(len=80)                       :: xlabel, ylabel
-!         ! character(len=76)                       :: nombre_con_extension
-!         logical                                 :: usar_ratio
-
-!         usar_ratio = .true.
-
-!         ! Carpeta y nombre por defecto
-!         if (present(ruta_carpeta)) then
-!             carpeta_dest = trim(ruta_carpeta)
-!         else
-!             carpeta_dest = 'salida'
-!         end if
-
-!         archivo_salida_png = trim(carpeta_dest) // '/' // trim(nombre_archivo) // '.png'
-!         archivo_script = trim(carpeta_dest) // '/script_export_png.gp'
-!         ! nombre_con_extension = trim(nombre_archivo)! // '.txt'
-
-!         ! Formateo numérico
-!         write(Valor_rc_str, '(F14.8)') datos_esp%rc
-!         write(Valor_k_str,  '(F12.8)') datos_esp%k    
-!         write(Valor_z_str,  '(F12.8)') datos_esp%z0
-
-!         titulo = '"z_0='//trim(adjustl(Valor_z_str))//', k='//trim(adjustl(Valor_k_str))// &
-!                  ' y rc='//trim(adjustl(Valor_rc_str))//'"'
-
-!         select case (tipo_png)
-!         case (1) ! ==== PNG COMPLETO BINARIO ====
-!             linea_plot = 'plot "'//trim(adjustl(nombre_archivo))//'" ls 0 lc 16 notitle'
-
-!         case (2) ! ==== PNG COMPLETO COS ====
-!             linea_plot = 'plot "'//trim(adjustl(nombre_archivo))//'" using 1:2:3 with points palette pt 7 ps 1 notitle'
-
-!         case (3) ! ==== FILA PNG ====
-!             xlabel     = '"eje pixeles (cm)"'
-!             ylabel     = '"eje irradiancia (escala de grises)"'
-!             linea_plot = 'plot "'//trim(adjustl(nombre_archivo))//'" with lines notitle'
-!             usar_ratio = .false.
-
-!         case (4) ! ==== COMPARACIÓN ====
-!             xlabel     = '"eje pixeles (cm)"'
-!             ylabel     = '"eje irradiancia (escala de grises)"'
-!             linea_plot = 'plot "sim1.txt" using 1:2 with lines title "sim1", "sim2.txt" using 1:2 with lines title "sim2"'
-!             usar_ratio = .false.
-
-!         case default
-!             print *, "Error: Tipo de PNG no válido."
-!             return
-!         end select
-
-!         ! Escritura del script de renderizado PNG
-!         open(unit=30, file=trim(archivo_script), status='replace')
-!             write(30,*) 'set terminal pngcairo size 800,800 background "white"'
-!             write(30,*) 'set output "' // trim(archivo_salida_png) // '"'
-!             write(30,*) 'set size ratio 1'
-!             write(30,*) 'unset key'
-!             write(30,*) 'unset tics'
-!             write(30,*) 'unset border'
-!             write(30,*) 'unset colorbox'
-!             write(30,*) 'set palette gray'
-!             write(30,*) 'set title ', trim(titulo)
-!             write(30,*) trim(linea_plot)
-!             ! Cierre del archivo de imagen para asegurar escritura en disco
-!             write(30,*) 'set output'
-!         close(30)
-
-!         ! No requiere '-p' ya que no abre ventana interactiva
-!         call system('gnuplot "' // trim(archivo_script) // '"')
-!     end subroutine generar_png
-
-! end module graficos
+contains
+
+    subroutine simulacion_grafica(nombre_archivo_puntos_ronchigrama)
+        implicit none
+        character(len=72), intent(in) :: nombre_archivo_puntos_ronchigrama
+        ! character(len=7), intent(in) :: tipo_grafica
+        character(len=76) :: nombre_con_extension
+        integer :: i, j
+
+        call leer_datos
+        call ctes_sim
+        call datos_if1
+        call asegurar_dimension_arrx
+        call asegurar_dimension_arry(datos_ciclodo_if1(tipo_num,1))
+        call if1
+        call datos_if2
+
+        nombre_con_extension = trim(nombre_archivo_puntos_ronchigrama)//'.txt'
+
+        open(40,file=nombre_con_extension,status='replace')
+            do i = 1, size(arr_x)
+            do j = 1, size(arr_y)
+                if(dist(arr_x(i),arr_y(j)) <= sdi) then 
+                    call comun(datos_esp%k,c,dist(arr_x(i),arr_y(j)),arr_x(i),arr_y(j),sdi)
+                    call if2(arr_x(i),arr_y(j))
+                end if
+            enddo
+            enddo
+        close(40)
+
+    end subroutine simulacion_grafica
+
+    subroutine simulacion_array
+        implicit none
+        integer :: cont!,i,j
+
+        !Subrutina, tamaño fila pupila
+        cont=0
+
+        ! do i = 1, size(arr_x)
+        ! do j = 1, size(arr_y)
+        !     if(dist(arr_x(i),arr_y(j))<=sdi) then
+        !         cont=cont+1
+        !         arr_xy(1,cont) = arr_x(i)
+        !         arr_xy(2,cont) = arr_y(j)
+        !     endif
+        ! enddo
+        ! enddo
+    end subroutine simulacion_array
+
+end module modulo_borrador
