@@ -689,4 +689,160 @@ contains
             end if   
         end if 
     end subroutine if2
+
+    subroutine TIPO_PATRON(pupilax,pupilay)
+        real(dp), intent(in) :: pupilax,pupilay
+        real(dp) :: txron,tyron,argx,argy
+        integer, parameter :: arch = 40
+
+        x=pupilax ; y=pupilay;
+
+        numx0= num(x,y,zx,zy,datos_esp%alfa,datos_esp%beta,z)
+        numy0= num(y,x,zy,zx,datos_esp%beta,datos_esp%alfa,z)
+        ! print*, 'x', x
+
+        if ("bironchigrama"=="bironchigrama") then !if ( "bironchigrama" == 'bironchigrama' ) then
+            tx = aberracion_t(x,datos_esp%z0,z,numx0,deno)
+            ty = aberracion_t(y,datos_esp%z0,z,numy0,deno)
+
+            argx = (2.0_dp*pi*tx)/delta
+            argy = (2.0_dp*pi*ty)/delta
+            
+            if ( "binario"=="binario"  ) then
+
+                if ("1D" == "1D") then
+                    if(cos(argx)>=0.and.cos(argy)>=0.0_dp) then    
+                        txron = aberracion_t(x,z_max,z,numx0,deno)
+                        write(arch,*) txron, 1.0_dp
+                    else 
+                        write(arch,*) txron, 0.0_dp
+                    endif
+                else if("2D"=="2D") then
+                    if(cos(argx)>=0.and.cos(argy)>=0.0_dp) then
+                        txron = aberracion_t(x,z_max,z,numx0,deno)
+                        tyron = aberracion_t(y,z_max,z,numy0,deno)
+                        write(arch,*) txron, tyron
+                    endif
+                else if ("3D"=="3D") then
+                    if(cos(argx)>=0.and.cos(argy)>=0.0_dp) then
+                        txron = aberracion_t(x,z_max,z,numx0,deno)
+                        tyron = aberracion_t(y,z_max,z,numy0,deno)                 
+                        write(arch,*) txron, tyron, 1.0_dp
+                    else 
+                        write(arch,*) txron, tyron, 0.0_dp
+                    endif
+                endif
+
+            else if ( "coseno"=="coseno"  ) then
+
+                if ("1D" == "1D") then
+                    txron = aberracion_t(x,z_max,z,numx0,deno)
+                    write(arch,*) txron,(cos(argx)+1)/4 + (cos(argy)+1)/4
+                else if("2D"=="2D") then
+                    txron = aberracion_t(x,z_max,z,numx0,deno)
+                    tyron = aberracion_t(y,z_max,z,numy0,deno)
+                    write(arch,*) txron,tyron,(cos(argx)+1)/4 + (cos(argy)+1)/4
+                else if ("3D"=="3D") then
+                    txron = aberracion_t(x,z_max,z,numx0,deno)
+                    tyron = aberracion_t(y,z_max,z,numy0,deno)
+                    write(arch,*) txron,tyron,(cos(argx)+1)/4 + (cos(argy)+1)/4
+                endif
+
+            end if  
+        
+        else if ("ronchigrama vertical x" == 'ronchigrama' ) then!else if ("ronchigrama vertical x" == 'ronchigrama') then
+            tx = aberracion_t(x,datos_esp%z0,z,numx0,deno)
+            argx = (2.0_dp*pi*tx)/delta
+
+            if ( "binario"=="binario" ) then
+
+                if ("1D" == "1D") then
+                    txron = aberracion_t(x,z_max,z,numx0,deno)
+                    if(cos(argx)>=0.0_dp) then
+                        write(arch,*) txron, 1.0_dp
+                    else
+                        write(arch,*) txron, 0.0_dp
+                    endif
+                else if("2D"=="2D") then
+                    txron = aberracion_t(x,z_max,z,numx0,deno)
+                    tyron = aberracion_t(y,z_max,z,numy0,deno)
+                    if(cos(argx)>=0.0_dp) then
+                        write(arch,*) txron, tyron
+                    endif
+                else if ("3D"=="3D") then
+                    txron = aberracion_t(x,z_max,z,numx0,deno)
+                    tyron = aberracion_t(y,z_max,z,numy0,deno)
+                    if(cos(argx)>=0.0_dp) then
+                        write(arch,*) txron, tyron, 1.0_dp
+                    else
+                        write(arch,*) txron, tyron, 0.0_dp
+                    endif
+                endif
+
+            else if ( "coseno"=="coseno"  ) then
+
+                if ("1D" == "1D") then
+                    txron = aberracion_t(x,z_max,z,numx0,deno)
+                    write(arch,*) txron, (cos(argx)+1)/2
+                else if("2D"=="2D") then
+                    txron = aberracion_t(x,z_max,z,numx0,deno)
+                    tyron = aberracion_t(y,z_max,z,numy0,deno)
+                    write(arch,*) txron, tyron, (cos(argx)+1)/2
+                else if ("3D"=="3D") then
+                    txron = aberracion_t(x,z_max,z,numx0,deno)
+                    tyron = aberracion_t(y,z_max,z,numy0,deno)
+                    write(arch,*) txron, tyron, (cos(argx)+1)/2
+                endif
+
+            end if  
+        else if ("ronchigrama horizontal y" == 'ronchigrama') then!else if ("ronchigrama horizontal y" == 'ronchigrama') then
+            ty = aberracion_t(y,datos_esp%z0,z,numy0,deno)
+            argy = (2.0_dp*pi*ty)/delta
+
+            if ( "binario"=="binario"  ) then
+
+                if ("1D" == "1D") then
+                    tyron = aberracion_t(y,z_max,z,numy0,deno)
+                    
+                    if(cos(argy)>=0.0_dp) then
+                        write(arch,*) tyron, 1.0_dp
+                    else
+                        write(arch,*) tyron, 0.0_dp
+                    endif
+                else if("2D"=="2D") then
+                    txron = aberracion_t(x,z_max,z,numx0,deno)
+                    tyron = aberracion_t(y,z_max,z,numy0,deno)
+                    if(cos(argy)>=0.0_dp) then
+                        write(arch,*) txron, tyron
+                    endif
+                else if ("3D"=="3D") then
+                    txron = aberracion_t(x,z_max,z,numx0,deno)
+                    tyron = aberracion_t(y,z_max,z,numy0,deno)
+
+                    if(cos(argy)>=0.0_dp) then
+                        write(arch,*) txron, tyron, 1.0_dp
+                    else
+                        write(arch,*) txron, tyron, 0.0_dp
+                    endif
+                endif
+
+            else if ( "coseno"=="coseno"  ) then
+
+                if ("1D" == "1D") then
+                    tyron = aberracion_t(y,z_max,z,numy0,deno)
+                    write(arch,*) tyron, (cos(argy)+1)/2
+                else if("2D"=="2D") then
+                    txron = aberracion_t(x,z_max,z,numx0,deno)
+                    tyron = aberracion_t(y,z_max,z,numy0,deno)
+                    write(arch,*) txron, tyron, (cos(argy)+1)/2
+                else if ("3D"=="3D") then
+                    txron = aberracion_t(x,z_max,z,numx0,deno)
+                    tyron = aberracion_t(y,z_max,z,numy0,deno)
+                    
+                    write(arch,*) txron, tyron, (cos(argx)+1)/2
+                endif
+
+            end if   
+        end if 
+    end subroutine
 end module calculos_ronchigrama

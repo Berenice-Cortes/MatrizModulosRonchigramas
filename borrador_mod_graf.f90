@@ -214,7 +214,6 @@ contains
             enddo
             enddo
         close(40)
-
     end subroutine simulacion_grafica
 
     subroutine simulacion_array
