@@ -432,18 +432,24 @@ module calculos_ronchigrama
     implicit none
     real(dp) ::  x, y, raiz,z,zx,zy,raiz_max,z_max,deno,numx0,numy0,tx,ty,tx_ron,ty_ron
     real(dp) :: sdi, delta, c
+    character(len=3) :: tipo_filycol(2,4)
+    character(len=8) :: tipo_rejybri(6)
+    character(len=3) :: tipo_anali(3)
+    integer :: datos_limites_x(5), datos_limites_y(5)
+    real(dp), allocatable :: arr_x(:), arr_y(:)
+    character (len=1) :: fila, columna
+    character(len=13) :: tipo_rejilla, tipo_brillo
+    character(len=2) :: tipo_analisis
+    ! character(len=3) :: tipo_rejilla
+    !=====================================
     character(len=20) :: tipo_if1(2,5)
     character(len=20) :: tipo_if2(2,8)
-    character(len=3) :: tipo_rejilla
     integer :: datos_ciclodo_if1(5,4), tipo_num, tipo_numif2, tipo_numif3
-    real(dp), allocatable :: arr_x(:), arr_y(:)
 
 contains
-    subroutine asegurar_dimension_arrx()
+    subroutine asegurar_dimension_arrx(n)
         implicit none
-        integer :: n
-
-        n=2*datos_esp%np+1
+        integer, intent(in) :: n
 
         if (.not. allocated(arr_x)) then
         allocate(arr_x(n))
@@ -560,6 +566,77 @@ contains
         print*, datos_ciclodo_if1(tipo_num,:)
     end subroutine datos_if1
 
+    subroutine DATOS_CANTIDAD_CALCULOS()
+        implicit none
+        character(len=2) :: tipo
+        integer :: lim_arr,lim_abj,saltoy,lim_izq,lim_der,saltox,valorx,valory,tam_arrx,tam_arry
+
+        tipo_filycol(1,1) = 'VF'; tipo_filycol(1,2) = 'FV'; tipo_filycol(1,3) = 'VV'; tipo_filycol(1,4) = 'FF'
+
+        print*, tipo_filycol
+        write(*,*) 'Elige uno:'
+        read(*,*) tipo
+        
+        if (tipo=='VF'.or.tipo=='vf') then
+            columna = "V"; fila = "F"
+        else if (tipo=='FV'.or.tipo=='fv') then
+            columna = "F"; fila = "V"
+        else if (tipo=='VV'.or.tipo=='vv') then
+            columna = "V"; fila = "V"
+        else if (tipo=='FF'.or.tipo=='ff') then
+            columna = "F"; fila = "F"
+        endif
+
+        lim_izq=0; lim_der=0; saltox=0; valorx=0
+        lim_abj=0; lim_arr=0; saltoy=0; valory=0
+
+        open(unit=10,file="limitesxy.txt",status="old",action="read")
+            if (columna == "V") then
+                read(10,*)
+                read(10,*) lim_izq,lim_der,saltox
+
+                if ( lim_izq*lim_der > 0 ) then
+                    tam_arrx = abs(lim_izq) + abs(lim_der)                    
+                else 
+                    tam_arrx = 1 + abs(lim_izq) + abs(lim_der)
+                end if
+            else
+                read(10,*)
+                read(10,*) valorx
+
+                tam_arrx = 1
+            endif
+
+            if (fila == "V") then
+                read(10,*)
+                read(10,*) lim_abj,lim_arr,saltoy
+
+                if ( lim_arr*lim_abj > 0 ) then
+                    tam_arry = abs(lim_arr) + abs(lim_abj)                    
+                else 
+                    tam_arry = 1 + abs(lim_arr) + abs(lim_abj)
+                end if
+            else
+                read(10,*)
+                read(10,*) valory
+
+                tam_arry = 1
+            endif
+        close(10)
+
+        datos_limites_x(1) = lim_izq
+        datos_limites_x(2) = lim_der
+        datos_limites_x(3) = saltox
+        datos_limites_x(4) = valorx
+        datos_limites_x(5) = tam_arrx
+
+        datos_limites_y(1) = lim_abj
+        datos_limites_y(2) = lim_arr
+        datos_limites_y(3) = saltoy
+        datos_limites_y(4) = valory
+        datos_limites_y(5) = tam_arry
+    end subroutine 
+
     subroutine datos_if2()
         implicit none
         character(len=7) :: tipo
@@ -583,6 +660,58 @@ contains
 
         print*, 'Numero asociado:', tipo_numif2
     end subroutine datos_if2
+
+    subroutine DATOS_TIPO_PATRON()
+        implicit none
+        character(len=7) :: tipo
+
+        tipo_rejybri(1) = 'birbini'; tipo_rejybri(2) = 'bircose'; tipo_rejybri(3) = 'ronxbin'
+        tipo_rejybri(4) = 'ronxcos'; tipo_rejybri(5) = 'ronybin'; tipo_rejybri(6) = 'ronycos'
+        ! tipo_rejybri(1) = 'birbini'; tipo_rejybri(2) = 'ronxbin'; tipo_rejybri(3) = 'ronybin'
+        ! tipo_rejybri(4) = 'bircose'; tipo_rejybri(5) = 'ronxcos'; tipo_rejybri(6) = 'ronycos'
+        write(*,*) tipo_rejybri
+
+        write(*,*) 'Ellige uno:'
+        read(*,*) tipo
+
+        ! do i = 1, 8
+        !     if (tipo_if2(1,i)==tipo) then
+        !         read(tipo_if2(2,i),*) tipo_numif2
+        !         exit
+        !     endif
+        ! end do
+
+        if ( tipo == 'birbini' .or. tipo == 'BIRBINI' ) then
+            tipo_rejilla = 'bironchigrama' ; tipo_brillo = 'binario'
+        else if ( tipo == 'bircose' .or. tipo == 'BIRCOSE') then
+            tipo_rejilla = 'bironchigrama' ; tipo_brillo = 'coseno'
+        else if ( tipo == 'ronxbin' .or. tipo == 'RONXBIN' ) then
+            tipo_rejilla = 'ronchigramax' ; tipo_brillo = 'binario'
+        else if ( tipo == 'ronxcos' .or. tipo == 'RONXCOS') then
+            tipo_rejilla = 'ronchigramax' ; tipo_brillo = 'coseno'
+        else if ( tipo == 'ronybin' .or. tipo == 'RONYBIN') then
+            tipo_rejilla = 'ronchigramay' ;  tipo_brillo = 'binario'
+        else if ( tipo == 'ronycos' .or. tipo == 'RONYCOS') then
+            tipo_rejilla = 'ronchigramay' ; tipo_brillo = 'coseno'
+        end if
+
+        if (fila/=columna) then
+            tipo_anali(1) = '1D'; tipo_anali(2) = ''; tipo_anali(3) = '3D'
+            write(*,*) tipo_anali
+
+            write(*,*) 'Ellige uno:'
+            read(*,*) tipo_analisis
+
+        else if (fila==columna) then
+
+            tipo_anali(1) = ''; tipo_anali(2) = '2D'; tipo_anali(3) = '3D'
+            write(*,*) tipo_anali
+
+            write(*,*) 'Ellige uno:'
+            read(*,*) tipo_analisis
+
+        endif
+    end subroutine
 
     subroutine if1()
         implicit none
@@ -608,6 +737,41 @@ contains
         write(*,*) "size(arr_x), size(arr_y)", size(arr_x), size(arr_y)
 
     end subroutine if1
+
+    subroutine CANTIDAD_CALCULOS()
+        implicit none
+        integer :: i,j,cont
+
+        if (columna == "V") then !más de una columna            
+            cont=0
+            do i = datos_limites_x(1), datos_limites_x(2),datos_limites_x(3)
+                cont=cont+1
+                arr_x(cont) = real(i,dp)*sdi/real(datos_esp%np, dp)
+            end do
+
+        else if (columna == "F") then
+            i = datos_limites_x(4)
+            arr_x(1)=real(i,dp)
+        endif
+
+        if (fila == "V") then !más de una fila
+            print*, "Trabaja fila"
+
+            cont=0
+            do j = datos_limites_y(1), datos_limites_y(2),datos_limites_y(3)
+            cont=cont+1
+            arr_y(cont) = real(j,dp)*sdi/real(datos_esp%np, dp)
+            end do
+        else if (fila=="F") then !fila Fija
+            print*, "Trabaja fila"
+
+            j=datos_limites_y(4)
+            arr_y(1)=real(j,dp)
+        endif
+
+        write(*,*) "size(arr_x), size(arr_y)", size(arr_x), size(arr_y)
+
+    end subroutine
     
     subroutine if2(pupilax,pupilay)
         real(dp), intent(in) :: pupilax,pupilay
@@ -701,48 +865,50 @@ contains
         numy0= num(y,x,zy,zx,datos_esp%beta,datos_esp%alfa,z)
         ! print*, 'x', x
 
-        if ("bironchigrama"=="bironchigrama") then !if ( "bironchigrama" == 'bironchigrama' ) then
+        if (tipo_rejilla == 'bironchigrama') then !if ( "bironchigrama" == 'bironchigrama' ) then
             tx = aberracion_t(x,datos_esp%z0,z,numx0,deno)
             ty = aberracion_t(y,datos_esp%z0,z,numy0,deno)
 
             argx = (2.0_dp*pi*tx)/delta
             argy = (2.0_dp*pi*ty)/delta
             
-            if ( "binario"=="binario"  ) then
+            if ( tipo_brillo == "binario"  ) then
 
-                if ("1D" == "1D") then
+                if (tipo_analisis == "1D" .or. tipo_analisis == "1d") then
+                    
+                    txron = aberracion_t(x,z_max,z,numx0,deno)
+
                     if(cos(argx)>=0.and.cos(argy)>=0.0_dp) then    
-                        txron = aberracion_t(x,z_max,z,numx0,deno)
                         write(arch,*) txron, 1.0_dp
                     else 
                         write(arch,*) txron, 0.0_dp
                     endif
-                else if("2D"=="2D") then
+                else if(tipo_analisis=="2D" .or. tipo_analisis == "2d") then
                     if(cos(argx)>=0.and.cos(argy)>=0.0_dp) then
                         txron = aberracion_t(x,z_max,z,numx0,deno)
                         tyron = aberracion_t(y,z_max,z,numy0,deno)
                         write(arch,*) txron, tyron
                     endif
-                else if ("3D"=="3D") then
+                else if (tipo_analisis=="3D" .or. tipo_analisis == "3d") then
                     if(cos(argx)>=0.and.cos(argy)>=0.0_dp) then
                         txron = aberracion_t(x,z_max,z,numx0,deno)
                         tyron = aberracion_t(y,z_max,z,numy0,deno)                 
                         write(arch,*) txron, tyron, 1.0_dp
-                    else 
-                        write(arch,*) txron, tyron, 0.0_dp
+                    ! else 
+                    !     write(arch,*) txron, tyron, 0.0_dp
                     endif
                 endif
 
-            else if ( "coseno"=="coseno"  ) then
+            else if ( tipo_brillo == "coseno"  ) then
 
-                if ("1D" == "1D") then
+                if (tipo_analisis == "1D" .or. tipo_analisis == "1d") then
                     txron = aberracion_t(x,z_max,z,numx0,deno)
                     write(arch,*) txron,(cos(argx)+1)/4 + (cos(argy)+1)/4
-                else if("2D"=="2D") then
+                else if (tipo_analisis == "2D" .or. tipo_analisis == "2d") then
                     txron = aberracion_t(x,z_max,z,numx0,deno)
                     tyron = aberracion_t(y,z_max,z,numy0,deno)
                     write(arch,*) txron,tyron,(cos(argx)+1)/4 + (cos(argy)+1)/4
-                else if ("3D"=="3D") then
+                else if (tipo_analisis == "3D" .or. tipo_analisis == "3d") then
                     txron = aberracion_t(x,z_max,z,numx0,deno)
                     tyron = aberracion_t(y,z_max,z,numy0,deno)
                     write(arch,*) txron,tyron,(cos(argx)+1)/4 + (cos(argy)+1)/4
@@ -750,58 +916,58 @@ contains
 
             end if  
         
-        else if ("ronchigrama vertical x" == 'ronchigrama' ) then!else if ("ronchigrama vertical x" == 'ronchigrama') then
+        else if (tipo_rejilla == 'ronchigramax' ) then!lineas verticales
             tx = aberracion_t(x,datos_esp%z0,z,numx0,deno)
             argx = (2.0_dp*pi*tx)/delta
 
-            if ( "binario"=="binario" ) then
+            if ( tipo_brillo == "binario" ) then
 
-                if ("1D" == "1D") then
+                if (tipo_analisis == "1D" .or. tipo_analisis == "1d") then
                     txron = aberracion_t(x,z_max,z,numx0,deno)
                     if(cos(argx)>=0.0_dp) then
                         write(arch,*) txron, 1.0_dp
                     else
                         write(arch,*) txron, 0.0_dp
                     endif
-                else if("2D"=="2D") then
+                else if (tipo_analisis == "2D" .or. tipo_analisis == "2d") then
                     txron = aberracion_t(x,z_max,z,numx0,deno)
                     tyron = aberracion_t(y,z_max,z,numy0,deno)
                     if(cos(argx)>=0.0_dp) then
                         write(arch,*) txron, tyron
                     endif
-                else if ("3D"=="3D") then
+                else if (tipo_analisis == "3D" .or. tipo_analisis == "3d") then
                     txron = aberracion_t(x,z_max,z,numx0,deno)
                     tyron = aberracion_t(y,z_max,z,numy0,deno)
                     if(cos(argx)>=0.0_dp) then
                         write(arch,*) txron, tyron, 1.0_dp
-                    else
-                        write(arch,*) txron, tyron, 0.0_dp
+                    ! else
+                    !     write(arch,*) txron, tyron, 0.0_dp
                     endif
                 endif
 
-            else if ( "coseno"=="coseno"  ) then
+            else if ( tipo_brillo == "coseno"  ) then
 
-                if ("1D" == "1D") then
+                if (tipo_analisis == "1D" .or. tipo_analisis == "1d") then
                     txron = aberracion_t(x,z_max,z,numx0,deno)
                     write(arch,*) txron, (cos(argx)+1)/2
-                else if("2D"=="2D") then
+                else if (tipo_analisis == "2D" .or. tipo_analisis == "2d") then
                     txron = aberracion_t(x,z_max,z,numx0,deno)
                     tyron = aberracion_t(y,z_max,z,numy0,deno)
                     write(arch,*) txron, tyron, (cos(argx)+1)/2
-                else if ("3D"=="3D") then
+                else if (tipo_analisis == "3D" .or. tipo_analisis == "3d") then
                     txron = aberracion_t(x,z_max,z,numx0,deno)
                     tyron = aberracion_t(y,z_max,z,numy0,deno)
                     write(arch,*) txron, tyron, (cos(argx)+1)/2
                 endif
 
             end if  
-        else if ("ronchigrama horizontal y" == 'ronchigrama') then!else if ("ronchigrama horizontal y" == 'ronchigrama') then
+        else if (tipo_rejilla == 'ronchigramay') then!lineas horizontales
             ty = aberracion_t(y,datos_esp%z0,z,numy0,deno)
             argy = (2.0_dp*pi*ty)/delta
 
-            if ( "binario"=="binario"  ) then
+            if ( tipo_brillo=="binario"  ) then
 
-                if ("1D" == "1D") then
+                if (tipo_analisis == "1D" .or. tipo_analisis == "1d") then
                     tyron = aberracion_t(y,z_max,z,numy0,deno)
                     
                     if(cos(argy)>=0.0_dp) then
@@ -809,33 +975,33 @@ contains
                     else
                         write(arch,*) tyron, 0.0_dp
                     endif
-                else if("2D"=="2D") then
+                else if (tipo_analisis == "2D" .or. tipo_analisis == "2d") then
                     txron = aberracion_t(x,z_max,z,numx0,deno)
                     tyron = aberracion_t(y,z_max,z,numy0,deno)
                     if(cos(argy)>=0.0_dp) then
                         write(arch,*) txron, tyron
                     endif
-                else if ("3D"=="3D") then
+                else if (tipo_analisis == "3D" .or. tipo_analisis == "3d") then
                     txron = aberracion_t(x,z_max,z,numx0,deno)
                     tyron = aberracion_t(y,z_max,z,numy0,deno)
 
                     if(cos(argy)>=0.0_dp) then
                         write(arch,*) txron, tyron, 1.0_dp
-                    else
-                        write(arch,*) txron, tyron, 0.0_dp
+                    ! else
+                    !     write(arch,*) txron, tyron, 0.0_dp
                     endif
                 endif
 
-            else if ( "coseno"=="coseno"  ) then
+            else if ( tipo_brillo=="coseno"  ) then
 
-                if ("1D" == "1D") then
+                if (tipo_analisis == "1D" .or. tipo_analisis == "1d") then
                     tyron = aberracion_t(y,z_max,z,numy0,deno)
                     write(arch,*) tyron, (cos(argy)+1)/2
-                else if("2D"=="2D") then
+                else if (tipo_analisis == "2D" .or. tipo_analisis == "2d") then
                     txron = aberracion_t(x,z_max,z,numx0,deno)
                     tyron = aberracion_t(y,z_max,z,numy0,deno)
                     write(arch,*) txron, tyron, (cos(argy)+1)/2
-                else if ("3D"=="3D") then
+                else if (tipo_analisis == "3D" .or. tipo_analisis == "3d") then
                     txron = aberracion_t(x,z_max,z,numx0,deno)
                     tyron = aberracion_t(y,z_max,z,numy0,deno)
                     

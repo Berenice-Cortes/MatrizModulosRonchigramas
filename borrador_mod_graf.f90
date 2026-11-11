@@ -3,9 +3,11 @@ program name
     implicit none
     character(len=72) :: nombre_txt
 
-    nombre_txt = 'Salida/ronxcos_diam'
+    nombre_txt = 'Salida/prueba'
 
     call simulacion_grafica(nombre_txt)
+    print*, datos_limites_x
+    print*, datos_limites_y
 end program name
 
 module borr_graficos
@@ -187,7 +189,7 @@ module modulo_borrador
     
 contains
 
-    subroutine simulacion_grafica(nombre_archivo_puntos_ronchigrama)
+    subroutine simulacion_grafica_V1(nombre_archivo_puntos_ronchigrama)
         implicit none
         character(len=72), intent(in) :: nombre_archivo_puntos_ronchigrama
         ! character(len=7), intent(in) :: tipo_grafica
@@ -197,7 +199,7 @@ contains
         call leer_datos
         call ctes_sim
         call datos_if1
-        call asegurar_dimension_arrx
+        call asegurar_dimension_arrx(2*datos_esp%np+1)
         call asegurar_dimension_arry(datos_ciclodo_if1(tipo_num,1))
         call if1
         call datos_if2
@@ -210,6 +212,36 @@ contains
                 if(dist(arr_x(i),arr_y(j)) <= sdi) then 
                     call comun(datos_esp%k,c,dist(arr_x(i),arr_y(j)),arr_x(i),arr_y(j),sdi)
                     call if2(arr_x(i),arr_y(j))
+                end if
+            enddo
+            enddo
+        close(40)
+    end subroutine simulacion_grafica_V1
+
+    subroutine simulacion_grafica(nombre_archivo_puntos_ronchigrama)
+        implicit none
+        character(len=72), intent(in) :: nombre_archivo_puntos_ronchigrama
+        ! character(len=7), intent(in) :: tipo_grafica
+        character(len=76) :: nombre_con_extension
+        integer :: i, j
+
+        call leer_datos
+        call ctes_sim
+        call DATOS_CANTIDAD_CALCULOS
+        call asegurar_dimension_arrx(datos_limites_x(5))
+        call asegurar_dimension_arry(datos_limites_y(5))
+        call CANTIDAD_CALCULOS
+        call DATOS_TIPO_PATRON
+
+        nombre_con_extension = trim(nombre_archivo_puntos_ronchigrama)//'.txt'
+
+        open(40,file=nombre_con_extension,status='replace')
+            do i = 1, size(arr_x)
+            do j = 1, size(arr_y)
+                if(dist(arr_x(i),arr_y(j)) <= sdi) then 
+                    ! print*, arr_x(i)
+                    call comun(datos_esp%k,c,dist(arr_x(i),arr_y(j)),arr_x(i),arr_y(j),sdi)
+                    call TIPO_PATRON(arr_x(i),arr_y(j))
                 end if
             enddo
             enddo
