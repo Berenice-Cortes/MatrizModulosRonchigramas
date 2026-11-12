@@ -876,13 +876,26 @@ contains
 
                 if (tipo_analisis == "1D" .or. tipo_analisis == "1d") then
                     
-                    txron = aberracion_t(x,z_max,z,numx0,deno)
+                    if ( fila == 'F' ) then
+                        txron = aberracion_t(x,z_max,z,numx0,deno)
 
-                    if(cos(argx)>=0.and.cos(argy)>=0.0_dp) then    
-                        write(arch,*) txron, 1.0_dp
-                    else 
-                        write(arch,*) txron, 0.0_dp
-                    endif
+                        if(cos(argx)>=0.and.cos(argy)>=0.0_dp) then    
+                            write(arch,*) txron, 1.0_dp
+                        else 
+                            write(arch,*) txron, 0.0_dp
+                        endif
+
+                    else if ( columna == 'F' ) then
+                        tyron = aberracion_t(y,z_max,z,numy0,deno)
+
+                        if(cos(argx)>=0.and.cos(argy)>=0.0_dp) then    
+                            write(arch,*) tyron, 1.0_dp
+                        else 
+                            write(arch,*) tyron, 0.0_dp
+                        endif
+                        
+                    end if
+
                 else if(tipo_analisis=="2D" .or. tipo_analisis == "2d") then
                     if(cos(argx)>=0.and.cos(argy)>=0.0_dp) then
                         txron = aberracion_t(x,z_max,z,numx0,deno)
@@ -902,8 +915,13 @@ contains
             else if ( tipo_brillo == "coseno"  ) then
 
                 if (tipo_analisis == "1D" .or. tipo_analisis == "1d") then
-                    txron = aberracion_t(x,z_max,z,numx0,deno)
-                    write(arch,*) txron,(cos(argx)+1)/4 + (cos(argy)+1)/4
+                    if ( fila == 'F' ) then
+                        txron = aberracion_t(x,z_max,z,numx0,deno)
+                        write(arch,*) txron,(cos(argx)+1)/4 + (cos(argy)+1)/4
+                    else if ( columna == 'F' ) then
+                        tyron = aberracion_t(y,z_max,z,numy0,deno)
+                        write(arch,*) tyron,(cos(argx)+1)/4 + (cos(argy)+1)/4
+                    end if
                 else if (tipo_analisis == "2D" .or. tipo_analisis == "2d") then
                     txron = aberracion_t(x,z_max,z,numx0,deno)
                     tyron = aberracion_t(y,z_max,z,numy0,deno)
@@ -965,7 +983,7 @@ contains
             ty = aberracion_t(y,datos_esp%z0,z,numy0,deno)
             argy = (2.0_dp*pi*ty)/delta
 
-            if ( tipo_brillo=="binario"  ) then
+            if ( tipo_brillo=="binario" ) then
 
                 if (tipo_analisis == "1D" .or. tipo_analisis == "1d") then
                     tyron = aberracion_t(y,z_max,z,numy0,deno)

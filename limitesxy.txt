@@ -1,4 +1,4 @@
 Limites x:
--50,50,1
+20
 Limites y:
-0,100,1
+0
